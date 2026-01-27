@@ -1,0 +1,66 @@
+#cloud-config
+# Copyright 2025 Replicated, Inc.
+#
+# This cloud-init configuration is used to initialize the
+# Replicated Embedded Cluster instance on first boot.
+
+write_files:
+  - path: /etc/replicated/license.yaml
+    owner: root:root
+    permissions: '0600'
+    content: |
+      ${indent(6, replicated_license_file)}
+
+  - path: /usr/local/bin/install-embedded-cluster.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+
+      # Generate a random admin password
+      ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
+
+      # Create directory for password storage
+      mkdir -p /var/lib/embedded-cluster
+
+      # Save the password
+      echo "$ADMIN_PASSWORD" > /var/lib/embedded-cluster/admin-console-password
+      chmod 600 /var/lib/embedded-cluster/admin-console-password
+
+      # Log start of installation
+      echo "[$(date)] Starting Embedded Cluster installation..." | tee -a /var/log/embedded-cluster-install.log
+
+      # Change to the directory containing the installer
+      cd /var/lib/test-ec
+
+      # Run the installation
+      echo "[$(date)] Running installation with test-ec binary..." | tee -a /var/log/embedded-cluster-install.log
+      sudo ./test-ec install \
+        --license /etc/replicated/license.yaml \
+        --admin-console-password "$ADMIN_PASSWORD" \
+        --airgap-bundle test-ec.airgap 2>&1 | tee -a /var/log/embedded-cluster-install.log
+
+      echo "[$(date)] Installation complete!" | tee -a /var/log/embedded-cluster-install.log
+
+      # Get external IP for logging
+      EXTERNAL_IP=$(curl -s http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip -H 'Metadata-Flavor: Google' || echo "no-external-ip")
+      echo "[$(date)] Access admin console at: https://$EXTERNAL_IP:30000" | tee -a /var/log/embedded-cluster-install.log
+
+runcmd:
+  - 'echo "[$(date)] Starting Replicated Embedded Cluster initialization..." | tee /var/log/embedded-cluster-init.log'
+  - 'echo "App: ${replicated_app_slug}" | tee -a /var/log/embedded-cluster-init.log'
+  - 'echo "Channel: ${replicated_channel_slug}" | tee -a /var/log/embedded-cluster-init.log'
+  - 'echo "License file written to /etc/replicated/license.yaml" | tee -a /var/log/embedded-cluster-init.log'
+  - /usr/local/bin/install-embedded-cluster.sh
+
+final_message: |
+  Replicated Embedded Cluster installation complete!
+
+  Access the admin console at: https://[INSTANCE_IP]:30000
+
+  To get the admin console password:
+  sudo cat /var/lib/embedded-cluster/admin-console-password
+
+  To check installation logs:
+  sudo tail -f /var/log/embedded-cluster-install.log

@@ -1,0 +1,211 @@
+# Copyright 2025 Replicated, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: BlueprintMetadata
+metadata:
+  name: replicated-embedded-cluster
+  annotations:
+    config.kubernetes.io/local-config: "true"
+spec:
+  info:
+    title: Replicated Embedded Cluster
+    version: 1.0.0
+    actuationTool:
+      flavor: Terraform
+      version: ">= 1.2"
+    description:
+      tagline: Deploy applications with Replicated Embedded Cluster
+      detailed: |
+        Replicated Embedded Cluster is a Kubernetes distribution that allows you to package
+        and deploy your application along with a complete Kubernetes cluster. This solution
+        provides a turnkey deployment experience for your application with built-in
+        management, upgrades, and support tooling.
+
+        Features:
+        - Pre-configured Kubernetes cluster
+        - Built-in admin console for application management
+        - Automated updates and rollback capabilities
+        - Application-specific configuration management
+        - Integrated monitoring and diagnostics
+        - Support for air-gapped environments
+
+  content:
+    architecture:
+      diagramUrl: https://docs.replicated.com/vendor/embedded-overview
+      description:
+        - Single VM deployment with Replicated Embedded Cluster
+        - Built-in Kubernetes cluster for application hosting
+        - Admin console accessible on port 30000
+        - Configurable application ports (80, 443)
+        - Optional Kubernetes API access (port 6443)
+
+    documentation:
+      - title: Replicated Documentation
+        url: https://docs.replicated.com/
+      - title: Embedded Cluster Overview
+        url: https://docs.replicated.com/vendor/embedded-overview
+      - title: Getting Started Guide
+        url: https://docs.replicated.com/vendor/embedded-kubernetes-overview
+
+    subBlueprints:
+      - name: compute
+        location: .
+
+  interfaces:
+    variables:
+      - name: project_id
+        description: The GCP project ID
+        varType: string
+        required: true
+
+      - name: goog_cm_deployment_name
+        description: The name of the deployment and VM instance
+        varType: string
+        required: true
+
+      - name: zone
+        description: The GCP zone for the deployment
+        varType: string
+        defaultValue: us-central1-a
+
+      - name: machine_type
+        description: The machine type for the instance
+        varType: string
+        defaultValue: n2-standard-4
+
+      - name: boot_disk_type
+        description: The boot disk type
+        varType: string
+        defaultValue: pd-balanced
+
+      - name: boot_disk_size
+        description: The boot disk size in GB
+        varType: number
+        defaultValue: 100
+
+      - name: networks
+        description: The network names to attach
+        varType: list(string)
+        defaultValue:
+          - default
+
+      - name: sub_networks
+        description: The subnetwork names
+        varType: list(string)
+        defaultValue: []
+
+      - name: external_ips
+        description: External IP configuration
+        varType: list(string)
+        defaultValue:
+          - EPHEMERAL
+
+      - name: enable_admin_console
+        description: Enable admin console access (port 30000)
+        varType: bool
+        defaultValue: true
+
+      - name: admin_console_source_ranges
+        description: Source IP ranges for admin console
+        varType: string
+        defaultValue: ""
+
+      - name: enable_http
+        description: Enable HTTP access (port 80)
+        varType: bool
+        defaultValue: true
+
+      - name: http_source_ranges
+        description: Source IP ranges for HTTP
+        varType: string
+        defaultValue: ""
+
+      - name: enable_https
+        description: Enable HTTPS access (port 443)
+        varType: bool
+        defaultValue: true
+
+      - name: https_source_ranges
+        description: Source IP ranges for HTTPS
+        varType: string
+        defaultValue: ""
+
+      - name: enable_k8s_api
+        description: Enable Kubernetes API access (port 6443)
+        varType: bool
+        defaultValue: false
+
+      - name: k8s_api_source_ranges
+        description: Source IP ranges for Kubernetes API
+        varType: string
+        defaultValue: ""
+
+      - name: enable_cloud_logging
+        description: Enable Google Cloud Logging
+        varType: bool
+        defaultValue: true
+
+      - name: enable_cloud_monitoring
+        description: Enable Google Cloud Monitoring
+        varType: bool
+        defaultValue: true
+
+      - name: enable_os_login
+        description: Enable OS Login
+        varType: bool
+        defaultValue: true
+
+      - name: replicated_app_slug
+        description: The Replicated application slug
+        varType: string
+        required: true
+
+      - name: replicated_channel_slug
+        description: The Replicated channel slug
+        varType: string
+        defaultValue: stable
+
+      - name: replicated_license_file
+        description: The Replicated license file content (YAML format)
+        varType: string
+        required: true
+
+    outputs:
+      - name: instance_name
+        description: The name of the compute instance
+
+      - name: instance_nat_ip
+        description: The external IP address
+
+      - name: instance_private_ip
+        description: The private IP address
+
+      - name: admin_console_url
+        description: URL to access the admin console
+
+      - name: application_url
+        description: URL to access the application (HTTP)
+
+      - name: application_https_url
+        description: URL to access the application (HTTPS)
+
+      - name: kubernetes_api_url
+        description: URL to access the Kubernetes API
+
+      - name: ssh_command
+        description: Command to SSH into the instance
+
+      - name: next_steps
+        description: Post-deployment instructions
