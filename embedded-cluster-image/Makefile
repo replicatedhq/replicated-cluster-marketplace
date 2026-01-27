@@ -1,3 +1,4 @@
+PROJECT_DIR := $(shell pwd)
 PKRVARS_FILE := ${SECRETS_DIR}/embedded-cluster.pkrvars.hcl
 PARAMS := ${SECRETS_DIR}/params.yaml
 
@@ -8,7 +9,7 @@ SALT := $(shell openssl rand -hex 64)
 
 define PKRVARS
 project_root		 = "$(PROJECT_DIR)"
-replicated_api_token="$(shell sops --decrypt --extract '["replicated"]["api_token"]' $(PARAMS))"
+replicated_api_token="$(shell yq .replicated.api_token $(PARAMS))"
 
 shadow    = "$(shell openssl passwd -6 -salt $(SALT) $(shell yq .default_password $(PARAMS)))"
 
@@ -20,13 +21,13 @@ source_ami          = "$(shell yq .source_ami $(PARAMS))"
 source_iso          = "$(shell yq .source_iso ${PARAMS})"
 source_iso_checksum = "$(shell yq .source_iso_checksum ${PARAMS})"
 
-access_key_id	= "$(shell sops --decrypt --extract '["aws"]["access_key_id"]' $(PARAMS))"
-secret_access_key	= "$(shell sops --decrypt --extract '["aws"]["secret_access_key"]' $(PARAMS))"
+access_key_id	= "$(shell yq .aws.access_key_id $(PARAMS))"
+secret_access_key	= "$(shell yq .aws.secret_access_key $(PARAMS))"
 regions = $(shell yq --output-format json .aws.regions $(PARAMS))
 
 vsphere_server   = "$(shell yq .vsphere.server ${PARAMS})"
 vsphere_username = "$(shell yq .vsphere.username ${PARAMS})"
-vsphere_password = "$(shell sops --decrypt --extract '["vsphere"]["password"]' ${PARAMS})"
+vsphere_password = "$(shell yq .vsphere.password ${PARAMS})"
 
 vsphere_datacenter      = "$(shell yq .vsphere.datacenter ${PARAMS})"
 vsphere_cluster         = "$(shell yq .vsphere.cluster ${PARAMS})"
@@ -35,11 +36,17 @@ vsphere_datastore       = "$(shell yq .vsphere.datastore ${PARAMS})"
 
 authorized_keys = $(shell yq --output-format json .ssh.authorized_keys ${PARAMS})
 
+gcp_project_id       = "$(shell yq .gcp.project_id $(PARAMS))"
+gcp_credentials_file = "$(shell yq .gcp.credentials_file $(PARAMS))"
+gcp_zone             = "$(shell yq .gcp.zone $(PARAMS))"
+gcp_source_image   = "$(shell yq .gcp.source_image $(PARAMS))"
+gcp_machine_type   = "$(shell yq .gcp.machine_type $(PARAMS))"
+
 output_directory = "${WORK_DIR}"
 endef
 
 define make-channel-targets
-.PHONY: image\:$(1)/$(2) ami\:$(1)/$(2) validate\:$(1)/$(2) debug\:$(1)/$(2) console\:$(1)/$(2)
+.PHONY: image\:$(1)/$(2) ami\:$(1)/$(2) ova\:$(1)/$(2) gcp\:$(1)/$(2) validate\:$(1)/$(2) debug\:$(1)/$(2) console\:$(1)/$(2)
 image\:$(1)/$(2): 
 	packer build --force --var 'application=$(1)' --var 'channel=$(2)' \
 		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
@@ -48,15 +55,19 @@ ami\:$(1)/$(2): $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/
 	packer build --only="amazon-ebs.embedded-cluster" --force --var 'application=$(1)' --var 'channel=$(2)' \
 		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
 
-ova\:$(1)/$(2): work/$(1)-$(2)-ubuntu-22.04-lts.ova
+ova\:$(1)/$(2): work/$(1)-$(2)-ubuntu-24-04-lts.ova
 
-work/$(1)-$(2)-ubuntu-22.04-lts/$(1)-$(2)-ubuntu-22.04-lts.ovf: $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/templates/*.tmpl
+work/$(1)-$(2)-ubuntu-24-04-lts/$(1)-$(2)-ubuntu-24-04-lts.ovf: $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/templates/*.tmpl
 	packer build --only="vsphere-iso.embedded-cluster" --force --var 'application=$(1)' --var 'channel=$(2)' \
 		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
 
-work/$(1)-$(2)-ubuntu-22.04-lts.ova: work/$(1)-$(2)-ubuntu-22.04-lts/$(1)-$(2)-ubuntu-22.04-lts.ovf 
-	python src/python/add-ovf-properties.py --application $(1) --channel $(2) work/$(1)-$(2)-ubuntu-22.04-lts/$(1)-$(2)-ubuntu-22.04-lts.ovf 
-	ovftool --targetType=OVA --diskMode=thin --overwrite work/$(1)-$(2)-ubuntu-22.04-lts/$(1)-$(2)-ubuntu-22.04-lts.ovf work/$(1)-$(2)-ubuntu-22.04-lts.ova
+work/$(1)-$(2)-ubuntu-24-04-lts.ova: work/$(1)-$(2)-ubuntu-24-04-lts/$(1)-$(2)-ubuntu-24-04-lts.ovf
+	python src/python/add-ovf-properties.py --application $(1) --channel $(2) work/$(1)-$(2)-ubuntu-24-04-lts/$(1)-$(2)-ubuntu-24-04-lts.ovf
+	ovftool --targetType=OVA --diskMode=thin --overwrite work/$(1)-$(2)-ubuntu-24-04-lts/$(1)-$(2)-ubuntu-24-04-lts.ovf work/$(1)-$(2)-ubuntu-24-04-lts.ova
+
+gcp\:$(1)/$(2): $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/templates/*.tmpl
+	packer build --only="googlecompute.embedded-cluster" --force --var 'application=$(1)' --var 'channel=$(2)' \
+		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
 
 validate\:$(1)/$(2): $(PKRVARS_FILE)
 	packer validate --var 'application=$(1)' --var 'channel=$(2)' \
@@ -91,10 +102,12 @@ init: $(PKRVARS_FILE)
 clean:
 	@rm $(PKRVARS_FILE)
 
-.PHONY: encrypt
-encrypt: 
-	@sops --encrypt --in-place $(PARAMS)
-
-.PHONY: decrypt
-decrypt: 
-	@sops --decrypt --in-place $(PARAMS
+# SOPS encryption targets removed - now using plain YAML
+# If you need encryption, consider using git-crypt or other tools
+# .PHONY: encrypt
+# encrypt:
+# 	@sops --encrypt --in-place $(PARAMS)
+#
+# .PHONY: decrypt
+# decrypt:
+# 	@sops --decrypt --in-place $(PARAMS
