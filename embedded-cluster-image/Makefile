@@ -2,8 +2,7 @@ PROJECT_DIR := $(shell pwd)
 PKRVARS_FILE := ${SECRETS_DIR}/embedded-cluster.pkrvars.hcl
 PARAMS := ${SECRETS_DIR}/params.yaml
 
-APPS := $(shell replicated app ls --output json | jq -c .) 
-APP_SLUGS := $(shell echo '$(APPS)' | jq -r '.[].app.slug')
+APP_SLUGS := $(shell replicated app ls --output json | jq -r '.[].app.slug')
 
 SALT := $(shell openssl rand -hex 64)
 
@@ -83,7 +82,7 @@ console\:$(1)/$(2): $(PKRVARS_FILE)
 endef
 
 define make-app-targets
-CHANNELS := $(shell echo '$(APPS)' | jq -r --arg slug $(1) '.[] | select(.app.slug == $$slug) | .channels[].channelSlug')
+CHANNELS := $(shell replicated app ls --output json | jq -r --arg slug $(1) '.[] | select(.app.slug == $$slug) | .channels[].channelSlug')
 $(foreach element,$(CHANNELS),$(eval $(call make-channel-targets,$(1),$(element))))
 endef
 $(foreach element,$(APP_SLUGS),$(eval $(call make-app-targets,$(element))))
