@@ -1,0 +1,119 @@
+#cloud-config
+
+# This is the user-data configuration file for cloud-init. By default this sets
+# up an initial user called "ubuntu" with password "ubuntu", which must be
+# changed at first login. However, many additional actions can be initiated on
+# first boot from this file. The cloud-init documentation has more details:
+#
+# https://cloudinit.readthedocs.io/
+#
+# Some additional examples are provided in comments below the default
+# configuration.
+
+prefer_fqdn_over_hostname: true
+
+chpasswd:
+  expire: false
+
+packages:
+- ca-certificates
+- curl
+- jq
+- python3-pip
+
+# Update apt database and upgrade packages on first boot
+package_update: true
+package_upgrade: true
+
+users:
+- default
+
+write_files:
+- path: /etc/ssh/sshd_config.d/01-hardening.conf
+  content: |
+    # enable eed25519 key
+    HostKey /etc/ssh/ssh_host_ed25519_key
+    # restrict supported key exchange, cipher, and MAC algorithms
+    KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256
+    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+    HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com
+    # restrict authentication mechanism
+    PasswordAuthentication yes
+    ChallengeResponseAuthentication no
+    PubkeyAuthentication yes
+    # disable root logins
+    PermitRootLogin no
+  permissions: '0644'
+  owner: root:root
+ 
+- path: /etc/ssh/ssh_config.d/01-hardening.conf
+  content: |
+    Host github.com
+      KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256
+    Host *
+      # restrict supported key exchange, cipher, and MAC algorithms
+      KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256
+      Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+      MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,umac-128-etm@openssh.com
+      HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,sk-ssh-ed25519@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,rsa-sha2-256,rsa-sha2-512,rsa-sha2-256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com
+      # restrict authentication mechanism
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
+      PubkeyAuthentication yes
+  permissions: '0644'
+  owner: root:root
+
+runcmd:
+- |
+  # install the Replicated CLI to use for the download step
+  curl -s https://api.github.com/repos/replicatedhq/replicated/releases/latest \
+    | grep "browser_download_url.*linux_amd64.tar.gz" \
+    | cut -d : -f 2,3 \
+    | tr -d \" \
+    | wget -O replicated.tar.gz -qi -
+  tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+  mv replicated /usr/local/bin/replicated
+
+- | 
+  # Download the embedded cluster airgap tarball and unpack it for later install
+  export PATH=$${PATH}:/usr/local/bin
+  export REPLICATED_API_TOKEN=${api_token}
+  export HOME=$(mktemp -d)  
+  mkdir -p /var/lib/${application}
+  ids=$(replicated app ls --output json | jq -r --arg app ${application}  --arg channel ${channel} '.[] | select(.app.slug == $app ) | { "app_id": .app.id, "channel_id": .channels[] | select( .channelSlug == $channel ) | .id }')
+  app_id=$(echo $ids | jq -r '.app_id')
+  channel_id=$(echo $ids | jq -r '.channel_id')
+  echo "fetching airgap bundle from /v3/app/$${app_id}/channel/$${channel_id}/embeddedcluster/release\?airgap=true"
+  curl --header "Authorization: $${REPLICATED_API_TOKEN}" \
+      https://api.replicated.com/vendor/v3/app/$${app_id}/channel/$${channel_id}/embeddedcluster/release\?airgap=true \
+    | tar -xzvf - -C /var/lib/${application} --owner 1118 --group 1118
+  rm /var/lib/${application}/${application}.tgz
+  chown 1118:1118 -R /var/lib/${application}
+
+- |
+  # uninstall the Replicated CLI since it's not useful to a customer
+  rm /usr/local/bin/replicated
+
+- |
+  # install cloud formation bootstrap scripts and signal completion
+  curl https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz -o /tmp/aws-cfn-bootstrap-latest.tar.gz \
+    && pip3 install /tmp/aws-cfn-bootstrap-latest.tar.gz \
+    && rm /tmp/aws-cfn-bootstrap-latest.tar.gz
+  
+- |
+  # install the boto3 library for accessing the AWS API
+  pip install boto3
+
+- | 
+  # remove SSH host keys to ensure they are regenerated when an instance is launched
+  shred -u /etc/ssh/*_key /etc/ssh/*_key.pub
+
+- |
+  # remove the authorized keys file for the user `root` to comply with Marketplace
+  # rules and avoid having a key on there that shouldn't be 
+  rm /root/.ssh/authorized_keys
+
+- |
+  # disable local root access
+  passwd -l root
