@@ -1,0 +1,316 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  InstanceType:
+    Type: String
+    Description: |
+      Select an instance type for your initial cluster node
+    AllowedValues:
+      - t3.2xlarge
+      - t3.xlarge
+      - t3a.2xlarge
+      - t3a.xlarge
+      - trn1.2xlarge
+      - m5.2xlarge
+      - m5.xlarge
+      - m5a.2xlarge
+      - m5a.xlarge
+      - m5ad.2xlarge
+      - m5ad.xlarge
+      - m5d.2xlarge
+      - m5d.xlarge
+      - m5dn.2xlarge
+      - m5dn.xlarge
+      - m5n.2xlarge
+      - m5n.xlarge
+      - m5zn.2xlarge
+      - m5zn.xlarge
+      - m6a.2xlarge
+      - m6a.xlarge
+      - m6i.2xlarge
+      - m6i.xlarge
+      - m6id.2xlarge
+      - m6id.xlarge
+      - m6idn.2xlarge
+      - m6idn.xlarge
+      - m6in.2xlarge
+      - m6in.xlarge
+      - m7a.2xlarge
+      - m7a.xlarge
+      - m7i-flex.2xlarge
+      - m7i-flex.xlarge
+      - m7i.2xlarge
+      - m7i.xlarge
+
+  DiskSize:
+    Type: Number
+    Description: |
+      Size for the boot disk
+    MinValue: 50
+
+  SubscriptionType:
+    Type: String
+    Description: |
+      Is this a paid or trial subscription?
+    AllowedValues:
+      - "Paid"
+      - "Trial"
+
+  BetaProgram:
+    Type: String
+    Description: |
+      You can choose to be part of the Slackernews Beta program and receive early access to
+      new releases and features. 
+    AllowedValues:
+      - "Yes"
+      - "No"
+
+  Email:
+    Type: String
+    Description: |
+      Email to use for your subscription. This email will only be used to
+      contact you about your use of Slackernews.
+
+  PublicKey:
+    Type: String
+    Description: |
+      Public key to enable connecting to the initial node of the cluster via SSH
+
+  AdminNetwork:
+    Type: String
+    Description: |
+      To protect access to the SSH and Admin Console ports on your Slackernews
+      instance, please specify the network your administrators should be
+      allowed to connect from using CIDR format. Use a CIDR range of the
+      format to x.x.x.x/32 to allow one specific IP address access, 0.0.0.0/0
+      to allow all IP addresses access, or another CIDR range.
+
+Mappings:
+  LicenseType:
+    Paid:
+      Type: prod
+    Trial:
+      Type: trial
+  LicenseTopic:
+    ap-northeast-1:
+      Arn: ${license_topic_ap_northeast_1}
+    ap-northeast-2:
+      Arn: ${license_topic_ap_northeast_2}
+    ap-northeast-3:
+      Arn: ${license_topic_ap_northeast_3}
+    ap-south-1:
+      Arn: ${license_topic_ap_south_1}
+    ap-southeast-1:
+      Arn: ${license_topic_ap_southeast_1}
+    ap-southeast-2:
+      Arn: ${license_topic_ap_southeast_2}
+    ca-central-1:
+      Arn: ${license_topic_ca_central_1}
+    eu-central-1:
+      Arn: ${license_topic_eu_central_1}
+    eu-north-1:
+      Arn: ${license_topic_eu_north_1}
+    eu-west-1:
+      Arn: ${license_topic_eu_west_1}
+    eu-west-2:
+      Arn: ${license_topic_eu_west_2}
+    eu-west-3:
+      Arn: ${license_topic_eu_west_3}
+    sa-east-1:
+      Arn: ${license_topic_sa_east_1}
+    us-east-1:
+      Arn: ${license_topic_us_east_1}
+    us-east-2:
+      Arn: ${license_topic_us_east_2}
+    us-west-1:
+      Arn: ${license_topic_us_west_1}
+    us-west-2:
+      Arn: ${license_topic_us_west_2}
+  Ami:
+    ap-northeast-1:
+      AmiId: ami-0ea54800728c521f7
+    ap-northeast-2:
+      AmiId: ami-001dd9d4d93ebc9f6
+    ap-northeast-3:
+      AmiId: ami-0f313fe7a9904d9be
+    ap-south-1:
+      AmiId: ami-019b76b10b32f1e29
+    ap-southeast-1:
+      AmiId: ami-02f30ef627f0b9f69
+    ap-southeast-2:
+      AmiId: ami-025e4be3d25a002a4
+    ca-central-1:
+      AmiId: ami-0d967421c3dc03e37
+    eu-central-1:
+      AmiId: ami-04bafc8eda3656736
+    eu-north-1:
+      AmiId: ami-0993229b2e5a342e0
+    eu-west-1:
+      AmiId: ami-0b93023395f2d08df
+    eu-west-2:
+      AmiId: ami-052c5c414cead3d5e
+    eu-west-3:
+      AmiId: ami-02afec65f6f75a712
+    sa-east-1:
+      AmiId: ami-0ba5714b1e11f6c3d
+    us-east-1:
+      AmiId: ami-0a3721dec5a0e32da
+    us-east-2:
+      AmiId: ami-002bea694ae16501b
+    us-west-1:
+      AmiId: ami-0339645cd930ff1bc
+    us-west-2:
+      AmiId: ami-0fb6aee51de24a99d
+
+Conditions:
+  IsBeta: !Equals [ BetaProgram, "Yes" ]
+
+Resources:
+  License:
+    Type: Custom::LambdaTrigger
+    Properties:
+      ServiceToken: !FindInMap [ LicenseTopic, !Ref AWS::Region, Arn ]
+      Name: !Join [ "", ["AWS Marketplace (Region ", !Ref AWS::Region, ", Account: ", !Ref AWS::AccountId, ")" ]]
+      ExternalId: !Ref AWS::AccountId
+      Email: !Ref Email
+      AppId: ${app_id}
+      Channel: !If [ IsBeta, Beta, Stable ]
+      Type: !FindInMap [ LicenseType, !Ref SubscriptionType, Type ]
+
+  AdminConsolePassword:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Description: Simple secret created by AWS CloudFormation.
+      GenerateSecretString:
+        ExcludeCharacters: "\"'"
+        PasswordLength: 20
+
+  AdminConsoleAccessRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service: 'ec2.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        - PolicyName: 'SecretsManagerAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action: 'secretsmanager:GetSecretValue'
+                Resource: !Ref AdminConsolePassword  
+
+  AdminConsoleAccessProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: '/'
+      Roles:
+        - !Ref AdminConsoleAccessRole
+
+  InitialNode:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: 'PT25M'
+    Properties:
+      ImageId: !FindInMap [ Ami, !Ref AWS::Region, AmiId ]
+      InstanceType: !Ref InstanceType   
+      IamInstanceProfile: !Ref AdminConsoleAccessProfile
+      SubnetId: !Ref ClusterSubnet
+      SecurityGroupIds:
+        - Fn::GetAtt:
+          - ClusterSecurityGroup
+          - GroupId
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1" 
+          Ebs:
+            VolumeSize: !Ref DiskSize 
+            VolumeType: gp3 
+            DeleteOnTermination: true 
+      UserData:
+        Fn::Base64: 
+          Fn::Sub:
+            - |
+              ${user_data}
+            - LicenseUri: !GetAtt License.LicenseUri
+              PublicKey: !Ref PublicKey
+              AdminConsolePasswordArn: !Ref AdminConsolePassword
+              StackName: !Ref AWS::StackName 
+              ResourceName: InitialNode 
+              Region: !Ref AWS::Region
+
+  ClusterVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.20.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  ClusterSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ClusterVPC
+      CidrBlock: 10.20.1.0/24
+      MapPublicIpOnLaunch: true
+
+  ClusterInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ClusterVPC
+      InternetGatewayId: !Ref ClusterInternetGateway
+
+  ClusterRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ClusterVPC
+
+  ClusterRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref ClusterRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref ClusterInternetGateway
+
+  ClusterSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ClusterSubnet
+      RouteTableId: !Ref ClusterRouteTable
+
+  ClusterSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable access via SSH and the Admin Console
+      VpcId: !Ref ClusterVPC
+      SecurityGroupIngress:
+        # SSH
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: !Ref AdminNetwork
+        # Admin console
+        - IpProtocol: tcp
+          FromPort: '30000'
+          ToPort: '30000'
+          CidrIp: !Ref AdminNetwork
+        # HTTPS for ingress/application traffic
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+
+Outputs:
+  ConsoleUri:
+    Description: URI to access the admin console of the new cluster
+    Value: !Sub http://$${InitialNode.PublicIp}:30000
+  LicenseUri:
+    Description: URI to download the license file, expires after 10 minutes
+    Value: !GetAtt License.LicenseUri 

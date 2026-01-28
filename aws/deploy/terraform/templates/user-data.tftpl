@@ -1,0 +1,47 @@
+#cloud-config
+
+# This is the user-data configuration file for cloud-init. By default this sets
+# up an initial user called "ubuntu" with password "ubuntu", which must be
+# changed at first login. However, many additional actions can be initiated on
+# first boot from this file. The cloud-init documentation has more details:
+#
+# https://cloudinit.readthedocs.io/
+#
+# Some additional examples are provided in comments below the default
+# configuration.
+
+chpasswd:
+  expire: false
+
+# Update apt database and upgrade packages on first boot
+package_update: true
+package_upgrade: true
+
+ssh_authorized_keys:
+- $${PublicKey}
+
+users:
+- default
+
+runcmd:
+- |
+  # download the latest release of the Replicated embedded cluster from GitHub and install it
+  curl -fL -o /opt/${application}/license.yaml '$${LicenseUri}' 
+  chown ${application}:${application} /opt/${application}/license.yaml
+  /opt/${application}/${application} install --license /opt/${application}/license.yaml --airgap-bundle /opt/${application}/${application}.airgap --no-prompt 
+
+- |
+  # use the KOTS CLI to reset the admin console password to the generated password
+  export PATH=$${!PATH}:/var/lib/embedded-cluster/bin
+  password=$(python3 - <<SCRIPT 
+  import boto3; 
+  secrets_manager = boto3.client('secretsmanager', '$${AWS::Region}')
+  password = secrets_manager.get_secret_value(SecretId='$${AdminConsolePassword}')['SecretString']
+  print(password)
+  SCRIPT
+  )
+  echo $${!password} | kubectl kots reset-password --kubeconfig /var/lib/k0s/pki/admin.conf --namespace kotsadm
+
+- |
+  # signal completion to CloudFormation
+  /usr/local/bin/cfn-signal --success true --stack $${StackName} --resource $${ResourceName} --region $${Region}
