@@ -10,7 +10,7 @@ zone                    = "us-central1-a"
 
 # Compute Configuration
 machine_type    = "n2-standard-4"  # Recommended minimum for production
-# source_image is pre-configured for this marketplace offering (slackernews-stable-ubuntu-24-04-lts)
+# source_image is pre-configured for this marketplace offering (slackernews-mackerel-stable-ubuntu-24-04-lts)
 boot_disk_type  = "pd-balanced"
 boot_disk_size  = 100
 
