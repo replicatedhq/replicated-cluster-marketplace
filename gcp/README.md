@@ -31,7 +31,7 @@ When the GCP instance boots for the first time, cloud-init automatically:
 
 1. **Writes the license file** to `/etc/replicated/license.yaml`
 2. **Generates a secure admin password** (25 characters, stored at `/var/lib/embedded-cluster/admin-console-password`)
-3. **Runs the Embedded Cluster installer** from `/var/lib/test-ec/test-ec` with the provided license and password
+3. **Runs the Embedded Cluster installer** from `/var/lib/slackernews/slackernews` with the provided license and password
 4. **Logs the installation process** to `/var/log/embedded-cluster-install.log`
 
 The installation typically takes 5-10 minutes. Once complete, your application is ready to use through the admin console on port 30000.
@@ -40,10 +40,10 @@ The installation typically takes 5-10 minutes. Once complete, your application i
 
 The cloud-init script executes:
 ```bash
-sudo /var/lib/test-ec/test-ec install \
+sudo /var/lib/slackernews/slackernews install \
   --license /etc/replicated/license.yaml \
   --admin-console-password "$AUTO_GENERATED_PASSWORD" \
-  --airgap-bundle test-ec.airgap
+  --airgap-bundle slackernews.airgap
 ```
 
 ## Prerequisites
@@ -53,15 +53,15 @@ sudo /var/lib/test-ec/test-ec install \
 3. **Replicated Account** with application slug and channel
 4. **Replicated License File** (YAML format - required for installation)
 
-The Embedded Cluster image (`test-ec-stable-ubuntu-24-04-lts`) is pre-configured in this marketplace offering and built from the [embedded-cluster-image](https://github.com/jdewinne/embedded-cluster-image) repository.
+The Embedded Cluster image (`slackernews-stable-ubuntu-24-04-lts`) is pre-configured in this marketplace offering and built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
 
 ## Quick Start
 
 ### 1. Clone this repository
 
 ```bash
-git clone https://github.com/jdewinne/replicated-cluster-gcp-marketplace.git
-cd replicated-cluster-gcp-marketplace
+git clone https://github.com/replicatedhq/replicated-cluster-marketplace.git
+cd replicated-cluster-marketplace/gcp
 ```
 
 ### 2. Create terraform.tfvars
@@ -108,7 +108,7 @@ terraform apply -var "replicated_license_file=$(cat /path/to/license.yaml)"
 terraform apply -var 'replicated_license_file=file("/path/to/license.yaml")'
 ```
 
-> **Note:** The `source_image` is pre-configured for this marketplace offering and uses the image `test-ec-stable-ubuntu-24-04-lts` built from the [embedded-cluster-image](https://github.com/jdewinne/embedded-cluster-image) repository.
+> **Note:** The `source_image` is pre-configured for this marketplace offering and uses the image `slackernews-stable-ubuntu-24-04-lts` built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
 
 ### 3. Initialize and Deploy
 
@@ -175,7 +175,7 @@ Once installation completes (typically 5-10 minutes):
 | `replicated_license_file` | Replicated license file content (YAML) | `file("license.yaml")` |
 
 **Notes:**
-- The source image (`test-ec-stable-ubuntu-24-04-lts`) is pre-configured for this marketplace offering and is not user-configurable.
+- The source image (`slackernews-stable-ubuntu-24-04-lts`) is pre-configured for this marketplace offering and is not user-configurable.
 - The admin console password is auto-generated during installation and stored at `/var/lib/embedded-cluster/admin-console-password`
 
 ### Common Variables
@@ -348,9 +348,9 @@ This Terraform configuration is designed to be used with different Embedded Clus
 
 ### To create a new marketplace offering:
 
-1. **Build your custom image** using the [embedded-cluster-image](https://github.com/jdewinne/embedded-cluster-image) repository
+1. **Build your custom image** using the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository
    - Follow the build process to create a GCP image for your specific app/channel
-   - Note the image name (e.g., `test-ec-stable-ubuntu-24-04-lts`)
+   - Note the image name (e.g., `slackernews-stable-ubuntu-24-04-lts`)
 
 2. **Update the source_image default** in `variables.tf`:
    ```hcl
@@ -380,7 +380,7 @@ This approach allows you to maintain one Terraform codebase while creating multi
 
 - [Replicated Documentation](https://docs.replicated.com/)
 - [Embedded Cluster Overview](https://docs.replicated.com/vendor/embedded-overview)
-- [Embedded Cluster Image Builder](https://github.com/jdewinne/embedded-cluster-image)
+- [Embedded Cluster Image Builder](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image)
 - [GCP Marketplace Tools](https://github.com/GoogleCloudPlatform/marketplace-tools)
 
 ## Support

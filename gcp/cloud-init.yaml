@@ -32,14 +32,14 @@ write_files:
       echo "[$(date)] Starting Embedded Cluster installation..." | tee -a /var/log/embedded-cluster-install.log
 
       # Change to the directory containing the installer
-      cd /var/lib/test-ec
+      cd /var/lib/${replicated_app_slug}
 
       # Run the installation
-      echo "[$(date)] Running installation with test-ec binary..." | tee -a /var/log/embedded-cluster-install.log
-      sudo ./test-ec install \
+      echo "[$(date)] Running installation with ${replicated_app_slug} binary..." | tee -a /var/log/embedded-cluster-install.log
+      sudo ./${replicated_app_slug} install \
         --license /etc/replicated/license.yaml \
         --admin-console-password "$ADMIN_PASSWORD" \
-        --airgap-bundle test-ec.airgap 2>&1 | tee -a /var/log/embedded-cluster-install.log
+        --airgap-bundle ${replicated_app_slug}.airgap 2>&1 | tee -a /var/log/embedded-cluster-install.log
 
       echo "[$(date)] Installation complete!" | tee -a /var/log/embedded-cluster-install.log
 

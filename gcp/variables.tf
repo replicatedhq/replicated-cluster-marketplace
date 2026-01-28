@@ -39,7 +39,7 @@ variable "machine_type" {
 variable "source_image" {
   description = "The source image for the boot disk. This is pre-configured for this marketplace offering."
   type        = string
-  default     = "projects/replicated-dev-environment/global/images/test-ec-stable-ubuntu-24-04-lts"
+  default     = "projects/replicated-dev-environment/global/images/slackernews-stable-ubuntu-24-04-lts"
 }
 
 variable "boot_disk_type" {
