@@ -137,6 +137,11 @@ variable "gcp_machine_type" {
   default = "n2-standard-4"
 }
 
+variable "kms_key_id" {
+  type = string
+  default = ""
+}
+
 locals {
   user-data = templatefile("${var.project_root}/src/packer/templates/user-data.tmpl",
                              {

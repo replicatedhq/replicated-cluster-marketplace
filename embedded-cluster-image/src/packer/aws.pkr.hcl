@@ -1,8 +1,11 @@
 source "amazon-ebs" "embedded-cluster" {
-  ami_name      = "${var.application}-${var.channel}-ubuntu-24-04-lts"
+  ami_name      = "${var.application}-${var.channel}-ubuntu-24.04-lts"
   source_ami    = var.source_ami
   instance_type = var.instance_type
-  
+
+  kms_key_id = var.kms_key_id
+  encrypt_boot = true
+
   launch_block_device_mappings {
     device_name = "/dev/sda1"
     volume_size = var.volume_size

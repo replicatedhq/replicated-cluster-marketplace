@@ -23,6 +23,7 @@ source_iso_checksum = "$(shell yq .source_iso_checksum ${PARAMS})"
 access_key_id	= "$(shell yq .aws.access_key_id $(PARAMS))"
 secret_access_key	= "$(shell yq .aws.secret_access_key $(PARAMS))"
 regions = $(shell yq --output-format json .aws.regions $(PARAMS))
+kms_key_id = "$(shell yq .aws.kms_key_id $(PARAMS))"
 
 vsphere_server   = "$(shell yq .vsphere.server ${PARAMS})"
 vsphere_username = "$(shell yq .vsphere.username ${PARAMS})"
@@ -82,8 +83,7 @@ console\:$(1)/$(2): $(PKRVARS_FILE)
 endef
 
 define make-app-targets
-CHANNELS := $(shell replicated app ls --output json | jq -r --arg slug $(1) '.[] | select(.app.slug == $$slug) | .channels[].channelSlug')
-$(foreach element,$(CHANNELS),$(eval $(call make-channel-targets,$(1),$(element))))
+$(foreach element,$(shell replicated app ls --output json | jq -r --arg slug $(1) '.[] | select(.app.slug == $$slug) | .channels[].channelSlug'),$(eval $(call make-channel-targets,$(1),$(element))))
 endef
 $(foreach element,$(APP_SLUGS),$(eval $(call make-app-targets,$(element))))
 
@@ -101,12 +101,3 @@ init: $(PKRVARS_FILE)
 clean:
 	@rm $(PKRVARS_FILE)
 
-# SOPS encryption targets removed - now using plain YAML
-# If you need encryption, consider using git-crypt or other tools
-# .PHONY: encrypt
-# encrypt:
-# 	@sops --encrypt --in-place $(PARAMS)
-#
-# .PHONY: decrypt
-# decrypt:
-# 	@sops --decrypt --in-place $(PARAMS
