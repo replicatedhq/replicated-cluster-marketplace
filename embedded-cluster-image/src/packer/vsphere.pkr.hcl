@@ -13,7 +13,7 @@ locals {
 }
 
 source "vsphere-iso" "embedded-cluster" {
-  vm_name      = "${var.application}-${var.channel}-ubuntu-22.04-lts"
+  vm_name      = "${var.application}-${var.channel}-ubuntu-24-04-lts"
 
   CPUs     = var.numvcpus
   RAM      = var.memsize
@@ -67,9 +67,9 @@ source "vsphere-iso" "embedded-cluster" {
   ]
 
   export {
-    name  = "${var.application}-${var.channel}-ubuntu-22.04-lts"
+    name  = "${var.application}-${var.channel}-ubuntu-24-04-lts"
     force = true
-    output_directory  = join("/", [ var.output_directory, "${var.application}-${var.channel}-ubuntu-22.04-lts"])
+    output_directory  = join("/", [ var.output_directory, "${var.application}-${var.channel}-ubuntu-24-04-lts"])
   }
 }
 

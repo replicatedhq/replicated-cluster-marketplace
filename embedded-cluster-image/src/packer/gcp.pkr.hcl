@@ -1,35 +1,26 @@
-source "amazon-ebs" "embedded-cluster" {
-  ami_name      = "${var.application}-${var.channel}-ubuntu-24.04-lts"
-  source_ami    = var.source_ami
-  instance_type = var.instance_type
+source "googlecompute" "embedded-cluster" {
+  project_id   = var.gcp_project_id
+  source_image = var.gcp_source_image
+  zone         = var.gcp_zone
 
-  kms_key_id = var.kms_key_id
-  encrypt_boot = true
+  image_name        = "${var.application}-${var.channel}-ubuntu-24-04-lts"
+  image_family      = "${var.application}-${var.channel}"
+  image_description = "Replicated Embedded Cluster: ${var.application} (${var.channel}) on Ubuntu 24.04 LTS"
 
-  launch_block_device_mappings {
-    device_name = "/dev/sda1"
-    volume_size = var.volume_size
+  ssh_username = "ubuntu"
+
+  credentials_file = var.gcp_credentials_file
+  disk_size        = var.volume_size
+  machine_type     = var.gcp_machine_type
+
+  metadata = {
+    user-data = local.user-data
   }
-
-  access_key = var.access_key_id
-  secret_key = var.secret_access_key
-  region     = var.build_region
-
-  ami_regions     = var.regions
-  ami_users       = [
-    "177217428600",
-    "429114214526"
-  ]
-
-  ssh_username         = "ubuntu"
-
-  user_data = local.user-data
 }
-
 
 build {
   sources = [
-    "source.amazon-ebs.embedded-cluster",
+    "source.googlecompute.embedded-cluster",
   ]
 
   provisioner "shell" {
@@ -62,8 +53,8 @@ system_info:
     - sudo
     - adm
     - ssher
-    sudo: 
-    - ALL=(ALL) NOPASSWD:ALL 
+    sudo:
+    - ALL=(ALL) NOPASSWD:ALL
     lock_passwd: true
 DEFAULT_USER
 chown root:root /etc/cloud/cloud.cfg.d/99_default_user.cfg
