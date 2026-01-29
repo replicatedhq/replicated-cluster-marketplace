@@ -8,5 +8,9 @@ packer {
       source  = "github.com/hashicorp/vsphere"
       version = ">= 1.4.2"
     }
+    googlecompute = {
+      source  = "github.com/hashicorp/googlecompute"
+      version = "~> 1"
+    }
   }
 }

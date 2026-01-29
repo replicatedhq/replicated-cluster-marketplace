@@ -107,6 +107,41 @@ variable "authorized_keys" {
   type = list(string)
 }
 
+variable "gcp_project_id" {
+  type = string
+  default = ""
+}
+
+variable "gcp_credentials_file" {
+  type = string
+  default = ""
+}
+
+variable "gcp_zone" {
+  type = string
+  default = "us-central1-a"
+}
+
+variable "gcp_source_image" {
+  type = string
+  default = "ubuntu-2404-noble-amd64-v20260117"
+}
+
+variable "gcp_source_image_family" {
+  type = string
+  default = "ubuntu-2404-lts"
+}
+
+variable "gcp_machine_type" {
+  type = string
+  default = "n2-standard-4"
+}
+
+variable "kms_key_id" {
+  type = string
+  default = ""
+}
+
 locals {
   user-data = templatefile("${var.project_root}/src/packer/templates/user-data.tmpl",
                              {
