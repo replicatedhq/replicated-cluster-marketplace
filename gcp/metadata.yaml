@@ -182,18 +182,65 @@ spec:
         varType: string
         required: true
 
+      - name: controller_count
+        description: Total number of controller nodes (1 for single-node, 3 for HA)
+        varType: number
+        defaultValue: 1
+
+      - name: worker_pools
+        description: List of worker node pools
+        varType: |-
+          list(object({
+            name         = string
+            count        = number
+            machine_type = optional(string)
+            roles        = optional(string, "worker")
+          }))
+        defaultValue: []
+
+      - name: admin_console_password
+        description: Admin console password for KOTS (leave empty to auto-generate)
+        varType: string
+        defaultValue: ""
+
+      - name: enable_internal_cluster_traffic
+        description: Enable firewall rules for internal cluster communication
+        varType: bool
+        defaultValue: true
+
     outputs:
       - name: instance_name
-        description: The name of the compute instance
+        description: The name of the primary controller instance
 
       - name: instance_nat_ip
-        description: The external IP address
+        description: The external IP address of the primary controller
 
       - name: instance_private_ip
-        description: The private IP address
+        description: The private IP address of the primary controller
+
+      - name: controller_names
+        description: Names of all controller instances
+
+      - name: controller_private_ips
+        description: Private IP addresses of all controller instances
+
+      - name: controller_public_ips
+        description: Public IP addresses of all controller instances
+
+      - name: worker_names
+        description: Names of all worker instances grouped by pool
+
+      - name: worker_private_ips
+        description: Private IP addresses of all worker instances grouped by pool
+
+      - name: worker_public_ips
+        description: Public IP addresses of all worker instances grouped by pool
 
       - name: admin_console_url
         description: URL to access the admin console
+
+      - name: admin_console_password
+        description: Instructions for retrieving the admin console password
 
       - name: application_url
         description: URL to access the application (HTTP)
@@ -205,7 +252,13 @@ spec:
         description: URL to access the Kubernetes API
 
       - name: ssh_command
-        description: Command to SSH into the instance
+        description: Command to SSH into the primary controller
+
+      - name: ssh_commands_all_nodes
+        description: Commands to SSH into all nodes
+
+      - name: cluster_size
+        description: Total number of nodes in the cluster
 
       - name: next_steps
         description: Post-deployment instructions

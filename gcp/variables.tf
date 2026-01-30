@@ -182,3 +182,42 @@ variable "replicated_license_file" {
   type        = string
   sensitive   = true
 }
+
+# Multi-Node Configuration
+variable "controller_count" {
+  description = "Total number of controller nodes (1 primary + N additional for HA). Set to 1 for single-node, 3 for HA."
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.controller_count >= 1
+    error_message = "Must have at least 1 controller node."
+  }
+}
+
+variable "worker_pools" {
+  description = "List of worker node pools. Each pool has: name, count, machine_type (optional), roles (optional, defaults to 'worker')"
+  type = list(object({
+    name         = string
+    count        = number
+    machine_type = optional(string)
+    roles        = optional(string, "worker")
+  }))
+  default = []
+  validation {
+    condition     = alltrue([for pool in var.worker_pools : pool.count >= 1])
+    error_message = "Each worker pool must have at least 1 node."
+  }
+}
+
+variable "admin_console_password" {
+  description = "Admin console password for KOTS. Leave empty to auto-generate on primary controller."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "enable_internal_cluster_traffic" {
+  description = "Enable firewall rules for internal cluster communication between nodes"
+  type        = bool
+  default     = true
+}

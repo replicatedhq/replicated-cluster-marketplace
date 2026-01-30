@@ -5,6 +5,7 @@ This Terraform module deploys a Replicated Embedded Cluster on Google Cloud Plat
 ## Features
 
 - **Pre-configured Kubernetes cluster** - Complete k8s environment ready for your application
+- **Multi-node support** - Deploy single-node or multi-node clusters with HA controllers and worker pools
 - **Built-in admin console** - Web-based management interface accessible on port 30000
 - **Automated updates** - Simplified application updates and rollback capabilities
 - **Integrated monitoring** - Built-in diagnostics and troubleshooting tools
@@ -13,7 +14,9 @@ This Terraform module deploys a Replicated Embedded Cluster on Google Cloud Plat
 
 ## Architecture
 
-The deployment creates:
+### Single-Node Deployment (Default)
+
+The default deployment creates:
 - Single GCP Compute Instance with Replicated Embedded Cluster pre-installed
 - Built-in Kubernetes cluster for hosting your application
 - Admin console for application management (port 30000)
@@ -22,6 +25,21 @@ The deployment creates:
   - Application HTTP/HTTPS traffic (ports 80/443)
   - Optional Kubernetes API access (port 6443)
 - Google Cloud Logging and Monitoring integration (optional)
+
+### Multi-Node Deployment (Optional)
+
+For high availability and scalability, you can deploy:
+- **Primary Controller** - Bootstraps the cluster, runs `install` command
+- **Additional Controllers** - Join as controller nodes for HA (e.g., 3 total for HA)
+- **Worker Pools** - One or more pools of worker nodes with configurable roles and machine types
+- **Password Distribution** - Simple HTTP server on primary controller for secure password sharing
+- **Internal Firewall Rules** - Automatic configuration for cluster communication (etcd, Kubernetes API, CNI)
+
+**Multi-Node Architecture:**
+1. Primary controller initializes cluster and generates admin password
+2. Password is served via internal HTTP server (port 8888)
+3. Additional controllers and workers fetch password and join cluster
+4. All nodes communicate via private network with firewall-protected ports
 
 ## How It Works
 
@@ -190,6 +208,27 @@ Once installation completes (typically 5-10 minutes):
 | `enable_cloud_logging` | Enable Cloud Logging | `true` |
 | `enable_cloud_monitoring` | Enable Cloud Monitoring | `true` |
 
+### Multi-Node Configuration Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `controller_count` | Total number of controller nodes (1 for single-node, 3 for HA) | `1` |
+| `worker_pools` | List of worker node pools (see example below) | `[]` |
+| `admin_console_password` | Admin console password (leave empty to auto-generate) | `""` |
+| `enable_internal_cluster_traffic` | Enable firewall rules for internal cluster communication | `true` |
+
+**Worker Pool Object Structure:**
+```hcl
+worker_pools = [
+  {
+    name         = "pool-name"      # Required: Pool name
+    count        = 3                # Required: Number of nodes in pool
+    machine_type = "n2-standard-8"  # Optional: Override default machine_type
+    roles        = "worker"         # Optional: Node roles (default: "worker")
+  }
+]
+```
+
 ### Networking Variables
 
 | Variable | Description | Default |
@@ -225,6 +264,66 @@ Once installation completes (typically 5-10 minutes):
 | `next_steps` | Post-deployment instructions |
 
 ## Deployment Scenarios
+
+### Single-Node Deployment (Default)
+
+```hcl
+project_id              = "my-project"
+goog_cm_deployment_name = "single-node"
+zone                    = "us-central1-a"
+
+controller_count = 1
+worker_pools     = []
+
+replicated_app_slug     = "my-app"
+replicated_license_file = file("license.yaml")
+```
+
+### High Availability (3 Controllers)
+
+```hcl
+project_id              = "my-project"
+goog_cm_deployment_name = "ha-cluster"
+zone                    = "us-central1-a"
+machine_type            = "n2-standard-8"
+
+controller_count = 3
+worker_pools     = []
+
+replicated_app_slug     = "my-app"
+replicated_license_file = file("license.yaml")
+
+# Optional: provide password instead of auto-generating
+admin_console_password = "my-secure-password"
+```
+
+### Multi-Node Cluster (3 Controllers + 5 Workers)
+
+```hcl
+project_id              = "my-project"
+goog_cm_deployment_name = "multi-node"
+zone                    = "us-central1-a"
+machine_type            = "n2-standard-8"
+
+controller_count = 3
+
+worker_pools = [
+  {
+    name  = "general"
+    count = 3
+    roles = "worker"
+  },
+  {
+    name         = "compute"
+    count        = 2
+    roles        = "worker"
+    machine_type = "n2-highcpu-16"  # Override machine type for this pool
+  }
+]
+
+replicated_app_slug     = "my-app"
+replicated_license_file = file("license.yaml")
+```
 
 ### Production Deployment
 
@@ -341,6 +440,47 @@ enable_https         = false
    sudo kubectl get pods -A
    sudo kubectl logs <pod-name> -n <namespace>
    ```
+
+### Multi-Node Cluster Issues
+
+#### Nodes Not Joining
+
+1. Check join logs on worker/additional controller:
+   ```bash
+   gcloud compute ssh <node-name> --zone=<zone>
+   sudo tail -f /var/log/embedded-cluster-join.log
+   ```
+
+2. Verify password server is running on primary controller:
+   ```bash
+   gcloud compute ssh <primary-controller> --zone=<zone>
+   sudo tail -f /var/log/password-server.log
+   ps aux | grep "python3 -m http.server 8888"
+   ```
+
+3. Test connectivity from worker to primary controller:
+   ```bash
+   # On worker node
+   curl http://<primary-controller-ip>:8888/password
+   ```
+
+4. Check internal firewall rules:
+   ```bash
+   gcloud compute firewall-rules describe ${deployment_name}-cluster-internal
+   ```
+
+#### Verify Cluster State
+
+```bash
+# SSH to any controller
+gcloud compute ssh <controller-name> --zone=<zone>
+
+# Check all nodes
+k0s kubectl get nodes -o wide
+
+# Verify node roles
+k0s kubectl get nodes --show-labels
+```
 
 ## Customizing for Different Marketplace Offerings
 

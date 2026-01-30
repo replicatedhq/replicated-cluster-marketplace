@@ -67,6 +67,31 @@ spec:
           xGoogleProperty:
             type: ET_MULTI_LINE_STRING
 
+        # Multi-Node Configuration
+        controller_count:
+          name: controller_count
+          title: Controller Count
+          section: multinode
+          tooltip: Number of controller nodes (1 for single-node, 3 for HA)
+          validation: Minimum 1
+          xGoogleProperty:
+            type: ET_INTEGER
+
+        admin_console_password:
+          name: admin_console_password
+          title: Admin Console Password
+          section: multinode
+          tooltip: Leave empty to auto-generate a password on the primary controller
+          placeholder: "Leave empty for auto-generation"
+
+        enable_internal_cluster_traffic:
+          name: enable_internal_cluster_traffic
+          title: Enable Internal Cluster Traffic
+          section: multinode
+          tooltip: Enable firewall rules for internal cluster communication (required for multi-node)
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
         # Compute Configuration
         machine_type:
           name: machine_type
@@ -225,6 +250,10 @@ spec:
         - name: replicated
           title: Replicated Configuration
           tooltip: Configure your Replicated application and channel
+
+        - name: multinode
+          title: Multi-Node Configuration
+          tooltip: Configure multi-node cluster with HA controllers and worker pools
 
         - name: compute
           title: Compute Configuration
