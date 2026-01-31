@@ -39,7 +39,7 @@ variable "machine_type" {
 variable "source_image" {
   description = "The source image for the boot disk. This is pre-configured for this marketplace offering."
   type        = string
-  default     = "projects/replicated-dev-environment/global/images/slackernews-mackerel-stable-ubuntu-24-04-lts"
+  default     = "projects/replicated-dev-environment/global/images/marketplace-example-stable-ubuntu-24-04-lts"
 }
 
 variable "boot_disk_type" {
@@ -107,28 +107,15 @@ variable "admin_console_source_ranges" {
   default     = ""
 }
 
-# Firewall Configuration - HTTP
-variable "enable_http" {
-  description = "Enable firewall rule for HTTP traffic (port 80)"
+# Firewall Configuration - Custom Port 8888
+variable "enable_8888" {
+  description = "Enable firewall rule for custom traffic (port 8888)"
   type        = bool
   default     = true
 }
 
-variable "http_source_ranges" {
-  description = "Source IP ranges for HTTP traffic (comma-separated). Leave empty for 0.0.0.0/0"
-  type        = string
-  default     = ""
-}
-
-# Firewall Configuration - HTTPS
-variable "enable_https" {
-  description = "Enable firewall rule for HTTPS traffic (port 443)"
-  type        = bool
-  default     = true
-}
-
-variable "https_source_ranges" {
-  description = "Source IP ranges for HTTPS traffic (comma-separated). Leave empty for 0.0.0.0/0"
+variable "custom_8888_source_ranges" {
+  description = "Source IP ranges for port 8888 traffic (comma-separated). Leave empty for 0.0.0.0/0"
   type        = string
   default     = ""
 }

@@ -113,33 +113,18 @@ resource "google_compute_firewall" "admin_console" {
   target_tags   = ["${var.goog_cm_deployment_name}-deployment"]
 }
 
-# Firewall rule for application HTTP traffic (port 80)
-resource "google_compute_firewall" "http" {
-  count   = var.enable_http ? 1 : 0
-  name    = "${var.goog_cm_deployment_name}-tcp-80"
+# Firewall rule for application custom traffic (port 8888)
+resource "google_compute_firewall" "custom_8888" {
+  count   = var.enable_8888 ? 1 : 0
+  name    = "${var.goog_cm_deployment_name}-tcp-8888"
   network = var.networks[0]
 
   allow {
     protocol = "tcp"
-    ports    = ["80"]
+    ports    = ["8888"]
   }
 
-  source_ranges = var.http_source_ranges != "" ? split(",", var.http_source_ranges) : ["0.0.0.0/0"]
-  target_tags   = ["${var.goog_cm_deployment_name}-deployment"]
-}
-
-# Firewall rule for application HTTPS traffic (port 443)
-resource "google_compute_firewall" "https" {
-  count   = var.enable_https ? 1 : 0
-  name    = "${var.goog_cm_deployment_name}-tcp-443"
-  network = var.networks[0]
-
-  allow {
-    protocol = "tcp"
-    ports    = ["443"]
-  }
-
-  source_ranges = var.https_source_ranges != "" ? split(",", var.https_source_ranges) : ["0.0.0.0/0"]
+  source_ranges = var.custom_8888_source_ranges != "" ? split(",", var.custom_8888_source_ranges) : ["0.0.0.0/0"]
   target_tags   = ["${var.goog_cm_deployment_name}-deployment"]
 }
 

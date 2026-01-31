@@ -19,7 +19,7 @@ The deployment creates:
 - Admin console for application management (port 30000)
 - Configurable firewall rules for:
   - Admin console access (port 30000)
-  - Application HTTP/HTTPS traffic (ports 80/443)
+  - Application traffic (port 8888)
   - Optional Kubernetes API access (port 6443)
 - Google Cloud Logging and Monitoring integration (optional)
 
@@ -31,7 +31,7 @@ When the GCP instance boots for the first time, cloud-init automatically:
 
 1. **Writes the license file** to `/etc/replicated/license.yaml`
 2. **Generates a secure admin password** (25 characters, stored at `/var/lib/embedded-cluster/admin-console-password`)
-3. **Runs the Embedded Cluster installer** from `/var/lib/slackernews-mackerel/slackernews-mackerel` with the provided license and password
+3. **Runs the Embedded Cluster installer** from `/var/lib/marketplace-example/marketplace-example` with the provided license and password
 4. **Logs the installation process** to `/var/log/embedded-cluster-install.log`
 
 The installation typically takes 5-10 minutes. Once complete, your application is ready to use through the admin console on port 30000.
@@ -40,10 +40,10 @@ The installation typically takes 5-10 minutes. Once complete, your application i
 
 The cloud-init script executes:
 ```bash
-sudo /var/lib/slackernews-mackerel/slackernews-mackerel install \
+sudo /var/lib/marketplace-example/marketplace-example install \
   --license /etc/replicated/license.yaml \
   --admin-console-password "$AUTO_GENERATED_PASSWORD" \
-  --airgap-bundle slackernews-mackerel.airgap
+  --airgap-bundle marketplace-example.airgap
 ```
 
 ## Prerequisites
@@ -53,7 +53,7 @@ sudo /var/lib/slackernews-mackerel/slackernews-mackerel install \
 3. **Replicated Account** with application slug and channel
 4. **Replicated License File** (YAML format - required for installation)
 
-The Embedded Cluster image (`slackernews-mackerel-stable-ubuntu-24-04-lts`) is pre-configured in this marketplace offering and built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
+The Embedded Cluster image (`marketplace-example-stable-ubuntu-24-04-lts`) is pre-configured in this marketplace offering and built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
 
 ## Quick Start
 
@@ -108,7 +108,7 @@ terraform apply -var "replicated_license_file=$(cat /path/to/license.yaml)"
 terraform apply -var 'replicated_license_file=file("/path/to/license.yaml")'
 ```
 
-> **Note:** The `source_image` is pre-configured for this marketplace offering and uses the image `slackernews-mackerel-stable-ubuntu-24-04-lts` built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
+> **Note:** The `source_image` is pre-configured for this marketplace offering and uses the image `marketplace-example-stable-ubuntu-24-04-lts` built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
 
 ### 3. Initialize and Deploy
 
@@ -175,7 +175,7 @@ Once installation completes (typically 5-10 minutes):
 | `replicated_license_file` | Replicated license file content (YAML) | `file("license.yaml")` |
 
 **Notes:**
-- The source image (`slackernews-mackerel-stable-ubuntu-24-04-lts`) is pre-configured for this marketplace offering and is not user-configurable.
+- The source image (`marketplace-example-stable-ubuntu-24-04-lts`) is pre-configured for this marketplace offering and is not user-configurable.
 - The admin console password is auto-generated during installation and stored at `/var/lib/embedded-cluster/admin-console-password`
 
 ### Common Variables
@@ -204,10 +204,8 @@ Once installation completes (typically 5-10 minutes):
 |----------|-------------|---------|
 | `enable_admin_console` | Enable admin console access (30000) | `true` |
 | `admin_console_source_ranges` | CIDR ranges for admin console | `""` (0.0.0.0/0) |
-| `enable_http` | Enable HTTP access (80) | `true` |
-| `http_source_ranges` | CIDR ranges for HTTP | `""` (0.0.0.0/0) |
-| `enable_https` | Enable HTTPS access (443) | `true` |
-| `https_source_ranges` | CIDR ranges for HTTPS | `""` (0.0.0.0/0) |
+| `enable_8888` | Enable application access (8888) | `true` |
+| `custom_8888_source_ranges` | CIDR ranges for port 8888 | `""` (0.0.0.0/0) |
 | `enable_k8s_api` | Enable Kubernetes API access (6443) | `false` |
 | `k8s_api_source_ranges` | CIDR ranges for K8s API | `""` (0.0.0.0/0) |
 
@@ -219,8 +217,7 @@ Once installation completes (typically 5-10 minutes):
 | `instance_nat_ip` | External IP address |
 | `instance_private_ip` | Private IP address |
 | `admin_console_url` | URL to access admin console |
-| `application_url` | HTTP URL for application |
-| `application_https_url` | HTTPS URL for application |
+| `application_url` | Application URL (port 8888) |
 | `ssh_command` | Command to SSH into instance |
 | `next_steps` | Post-deployment instructions |
 
@@ -254,8 +251,7 @@ enable_cloud_monitoring = false
 ```hcl
 external_ips         = ["NONE"]
 enable_admin_console = false  # Access via Cloud VPN or IAP
-enable_http          = false
-enable_https         = false
+enable_8888          = false
 ```
 
 ## Machine Type Recommendations
@@ -334,7 +330,7 @@ enable_https         = false
 ### Application Not Accessible
 
 1. Check application status in admin console
-2. Verify firewall rules for ports 80/443
+2. Verify firewall rules for port 8888
 3. Check application logs:
    ```bash
    $(terraform output -raw ssh_command)
@@ -350,7 +346,7 @@ This Terraform configuration is designed to be used with different Embedded Clus
 
 1. **Build your custom image** using the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository
    - Follow the build process to create a GCP image for your specific app/channel
-   - Note the image name (e.g., `slackernews-mackerel-stable-ubuntu-24-04-lts`)
+   - Note the image name (e.g., `marketplace-example-stable-ubuntu-24-04-lts`)
 
 2. **Update the source_image default** in `variables.tf`:
    ```hcl
