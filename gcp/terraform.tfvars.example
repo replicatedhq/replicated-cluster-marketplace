@@ -10,7 +10,7 @@ zone                    = "us-central1-a"
 
 # Compute Configuration
 machine_type    = "n2-standard-4"  # Recommended minimum for production
-# source_image is pre-configured for this marketplace offering (slackernews-mackerel-stable-ubuntu-24-04-lts)
+# source_image is pre-configured for this marketplace offering (marketplace-example-stable-ubuntu-24-04-lts)
 boot_disk_type  = "pd-balanced"
 boot_disk_size  = 100
 
@@ -23,11 +23,8 @@ external_ips = ["EPHEMERAL"]  # Use ["NONE"] for private-only deployment
 enable_admin_console        = true
 admin_console_source_ranges = ""  # Empty = 0.0.0.0/0, or use "10.0.0.0/8,172.16.0.0/12"
 
-enable_http          = true
-http_source_ranges   = ""  # Empty = 0.0.0.0/0
-
-enable_https         = true
-https_source_ranges  = ""  # Empty = 0.0.0.0/0
+enable_8888               = true
+custom_8888_source_ranges = ""  # Empty = 0.0.0.0/0
 
 enable_k8s_api       = false  # Set to true if you need direct Kubernetes API access
 k8s_api_source_ranges = ""    # Recommended to restrict this if enabled
@@ -57,14 +54,12 @@ EOT
 
 # Example with restricted access:
 # admin_console_source_ranges = "203.0.113.0/24,198.51.100.0/24"
-# http_source_ranges          = "0.0.0.0/0"
-# https_source_ranges         = "0.0.0.0/0"
+# custom_8888_source_ranges   = "0.0.0.0/0"
 # enable_k8s_api              = true
 # k8s_api_source_ranges       = "10.0.0.0/8"
 
 # Example private deployment (no external IP):
 # external_ips                = ["NONE"]
 # enable_admin_console        = false  # Access via internal network only
-# enable_http                 = false
-# enable_https                = false
+# enable_8888                 = false
 # enable_k8s_api              = false
