@@ -1,0 +1,300 @@
+# Copyright 2025 Replicated, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: BlueprintMetadata
+metadata:
+  name: replicated-embedded-cluster-display
+  annotations:
+    config.kubernetes.io/local-config: "true"
+spec:
+  ui:
+    input:
+      variables:
+        # Core Configuration
+        project_id:
+          name: project_id
+          title: Project ID
+          section: core
+          xGoogleProperty:
+            type: ET_GCP_PROJECT_ID
+
+        goog_cm_deployment_name:
+          name: goog_cm_deployment_name
+          title: Deployment Name
+          section: core
+          xGoogleProperty:
+            type: ET_DEPLOYMENT_NAME
+
+        zone:
+          name: zone
+          title: Zone
+          section: core
+          xGoogleProperty:
+            type: ET_GCE_ZONE
+
+        # Replicated Configuration
+        replicated_app_slug:
+          name: replicated_app_slug
+          title: Replicated Application Slug
+          section: replicated
+          tooltip: The slug of your Replicated application (found in the Replicated vendor portal)
+          validation: Required
+
+        replicated_channel_slug:
+          name: replicated_channel_slug
+          title: Release Channel
+          section: replicated
+          tooltip: The release channel to deploy (e.g., stable, beta, unstable)
+
+        replicated_license_file:
+          name: replicated_license_file
+          title: License File
+          section: replicated
+          tooltip: Paste your Replicated license file content here (YAML format). Required for installation.
+          validation: Required
+          xGoogleProperty:
+            type: ET_MULTI_LINE_STRING
+
+        # Multi-Node Configuration
+        controller_count:
+          name: controller_count
+          title: Controller Count
+          section: multinode
+          tooltip: Number of controller nodes (1 for single-node, 3 for HA)
+          validation: Minimum 1
+          xGoogleProperty:
+            type: ET_INTEGER
+
+        admin_console_password:
+          name: admin_console_password
+          title: Admin Console Password
+          section: multinode
+          tooltip: Leave empty to auto-generate a password on the primary controller
+          placeholder: "Leave empty for auto-generation"
+
+        enable_internal_cluster_traffic:
+          name: enable_internal_cluster_traffic
+          title: Enable Internal Cluster Traffic
+          section: multinode
+          tooltip: Enable firewall rules for internal cluster communication (required for multi-node)
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        # Compute Configuration
+        machine_type:
+          name: machine_type
+          title: Machine Type
+          section: compute
+          xGoogleProperty:
+            type: ET_GCE_MACHINE_TYPE
+            zoneProperty: zone
+
+        # Boot Disk Configuration
+        boot_disk_type:
+          name: boot_disk_type
+          title: Boot Disk Type
+          section: boot_disk
+          xGoogleProperty:
+            type: ET_GCE_DISK_TYPE
+            zoneProperty: zone
+
+        boot_disk_size:
+          name: boot_disk_size
+          title: Boot Disk Size (GB)
+          section: boot_disk
+          tooltip: Minimum 50 GB recommended for Embedded Cluster
+          validation: Minimum 50 GB
+          xGoogleProperty:
+            type: ET_GCE_DISK_SIZE
+            gceDiskSize:
+              diskTypeVariable: boot_disk_type
+
+        # Networking Configuration
+        networks:
+          name: networks
+          title: Networks
+          section: networking
+          minItems: 1
+          maxItems: 8
+          xGoogleProperty:
+            type: ET_GCE_NETWORK
+            gceNetwork:
+              allowSharedVpcs: true
+              machineTypeVariable: machine_type
+
+        sub_networks:
+          name: sub_networks
+          title: Subnetworks
+          section: networking
+          minItems: 0
+          maxItems: 8
+          xGoogleProperty:
+            type: ET_GCE_SUBNETWORK
+            gceSubnetwork:
+              networkVariable: networks
+
+        external_ips:
+          name: external_ips
+          title: External IPs
+          section: networking
+          tooltip: Configure external IP addresses (EPHEMERAL, NONE, or static IP)
+          minItems: 1
+          maxItems: 8
+          xGoogleProperty:
+            type: ET_GCE_EXTERNAL_IP
+            gceExternalIp:
+              networkVariable: networks
+              notConfigurable: false
+              allowStaticIps: true
+
+        # Firewall Configuration - Admin Console
+        enable_admin_console:
+          name: enable_admin_console
+          title: Enable Admin Console Access (Port 30000)
+          section: firewall
+          tooltip: Allow access to the Replicated admin console
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        admin_console_source_ranges:
+          name: admin_console_source_ranges
+          title: Admin Console Source IP Ranges
+          section: firewall
+          tooltip: Comma-separated list of CIDR blocks. Leave empty for 0.0.0.0/0
+          placeholder: "10.0.0.0/8,172.16.0.0/12"
+
+        # Firewall Configuration - Application
+        enable_http:
+          name: enable_http
+          title: Enable HTTP Access (Port 80)
+          section: firewall
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        http_source_ranges:
+          name: http_source_ranges
+          title: HTTP Source IP Ranges
+          section: firewall
+          tooltip: Comma-separated list of CIDR blocks. Leave empty for 0.0.0.0/0
+          placeholder: "0.0.0.0/0"
+
+        enable_https:
+          name: enable_https
+          title: Enable HTTPS Access (Port 443)
+          section: firewall
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        https_source_ranges:
+          name: https_source_ranges
+          title: HTTPS Source IP Ranges
+          section: firewall
+          tooltip: Comma-separated list of CIDR blocks. Leave empty for 0.0.0.0/0
+          placeholder: "0.0.0.0/0"
+
+        enable_k8s_api:
+          name: enable_k8s_api
+          title: Enable Kubernetes API Access (Port 6443)
+          section: firewall
+          tooltip: Allow direct access to the Kubernetes API (advanced users only)
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        k8s_api_source_ranges:
+          name: k8s_api_source_ranges
+          title: Kubernetes API Source IP Ranges
+          section: firewall
+          tooltip: Comma-separated list of CIDR blocks. Leave empty for 0.0.0.0/0
+          placeholder: "10.0.0.0/8"
+
+        # Cloud Operations
+        enable_cloud_logging:
+          name: enable_cloud_logging
+          title: Enable Cloud Logging
+          section: operations
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        enable_cloud_monitoring:
+          name: enable_cloud_monitoring
+          title: Enable Cloud Monitoring
+          section: operations
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+        enable_os_login:
+          name: enable_os_login
+          title: Enable OS Login
+          section: operations
+          tooltip: Use Google Cloud OS Login for SSH access management
+          xGoogleProperty:
+            type: ET_BOOLEAN
+
+      sections:
+        - name: core
+          title: Core Configuration
+          tooltip: Basic deployment configuration
+
+        - name: replicated
+          title: Replicated Configuration
+          tooltip: Configure your Replicated application and channel
+
+        - name: multinode
+          title: Multi-Node Configuration
+          tooltip: Configure multi-node cluster with HA controllers and worker pools
+
+        - name: compute
+          title: Compute Configuration
+          tooltip: Configure the VM instance specifications
+
+        - name: boot_disk
+          title: Boot Disk
+          tooltip: Configure the boot disk for the instance
+
+        - name: networking
+          title: Networking
+          tooltip: Configure network settings and connectivity
+
+        - name: firewall
+          title: Firewall Rules
+          tooltip: Configure firewall rules for application access
+
+        - name: operations
+          title: Google Cloud Operations
+          tooltip: Configure logging, monitoring, and access management
+
+    runtime:
+      suggestedActions:
+        - heading: Access Admin Console
+          description: Access the Replicated admin console to configure and deploy your application
+          snippet: |
+            echo "Admin Console URL: https://$(terraform output -raw instance_nat_ip):30000"
+            echo ""
+            echo "To get the admin console password, SSH into the instance and run:"
+            echo "sudo cat /var/lib/embedded-cluster/admin-console-password"
+
+        - heading: SSH into Instance
+          description: Connect to your instance via SSH
+          snippet: $(terraform output -raw ssh_command)
+
+        - heading: View Application URLs
+          description: View URLs to access your deployed application
+          snippet: |
+            echo "HTTP URL:  $(terraform output -raw application_url)"
+            echo "HTTPS URL: $(terraform output -raw application_https_url)"
+
+        - heading: Next Steps
+          description: Complete setup instructions
+          snippet: terraform output -raw next_steps

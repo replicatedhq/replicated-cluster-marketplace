@@ -1,0 +1,65 @@
+# Copyright 2025 Replicated, Inc.
+#
+# Example terraform.tfvars file for deploying Replicated Embedded Cluster
+# Copy this file to terraform.tfvars and customize the values
+
+# Core GCP Configuration
+project_id              = "your-gcp-project-id"
+goog_cm_deployment_name = "replicated-cluster-prod"
+zone                    = "us-central1-a"
+
+# Compute Configuration
+machine_type    = "n2-standard-4"  # Recommended minimum for production
+# source_image is pre-configured for this marketplace offering (marketplace-example-stable-ubuntu-24-04-lts)
+boot_disk_type  = "pd-balanced"
+boot_disk_size  = 100
+
+# Network Configuration
+networks     = ["default"]
+sub_networks = []
+external_ips = ["EPHEMERAL"]  # Use ["NONE"] for private-only deployment
+
+# Firewall Configuration
+enable_admin_console        = true
+admin_console_source_ranges = ""  # Empty = 0.0.0.0/0, or use "10.0.0.0/8,172.16.0.0/12"
+
+enable_8888               = true
+custom_8888_source_ranges = ""  # Empty = 0.0.0.0/0
+
+enable_k8s_api       = false  # Set to true if you need direct Kubernetes API access
+k8s_api_source_ranges = ""    # Recommended to restrict this if enabled
+
+# Cloud Operations
+enable_cloud_logging    = true
+enable_cloud_monitoring = true
+enable_os_login         = true
+
+# Replicated Configuration
+replicated_app_slug     = "your-app-slug"     # Get this from Replicated vendor portal
+replicated_channel_slug = "stable"            # or "beta", "unstable", etc.
+
+# License file content (YAML format) - REQUIRED
+# Option 1: Inline YAML content
+replicated_license_file = <<-EOT
+apiVersion: kots.io/v1beta1
+kind: License
+metadata:
+  name: your-license
+spec:
+  # Your license content here
+EOT
+
+# Option 2: Load from file (uncomment and comment out Option 1)
+# replicated_license_file = file("path/to/your/license.yaml")
+
+# Example with restricted access:
+# admin_console_source_ranges = "203.0.113.0/24,198.51.100.0/24"
+# custom_8888_source_ranges   = "0.0.0.0/0"
+# enable_k8s_api              = true
+# k8s_api_source_ranges       = "10.0.0.0/8"
+
+# Example private deployment (no external IP):
+# external_ips                = ["NONE"]
+# enable_admin_console        = false  # Access via internal network only
+# enable_8888                 = false
+# enable_k8s_api              = false
