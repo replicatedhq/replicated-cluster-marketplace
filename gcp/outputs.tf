@@ -199,8 +199,8 @@ output "cluster_size" {
   description = "Total number of nodes in the cluster"
   value = {
     controllers = var.controller_count
-    workers     = sum([for pool in var.worker_pools : pool.count])
-    total       = var.controller_count + sum([for pool in var.worker_pools : pool.count])
+    workers     = length(var.worker_pools) > 0 ? sum([for pool in var.worker_pools : pool.count]) : 0
+    total       = var.controller_count + (length(var.worker_pools) > 0 ? sum([for pool in var.worker_pools : pool.count]) : 0)
   }
 }
 
@@ -229,8 +229,8 @@ output "next_steps" {
     Cluster Configuration:
     - Controllers: ${var.controller_count}
     - Worker Pools: ${length(var.worker_pools)}
-    - Total Workers: ${sum([for pool in var.worker_pools : pool.count])}
-    - Total Nodes: ${var.controller_count + sum([for pool in var.worker_pools : pool.count])}
+    - Total Workers: ${length(var.worker_pools) > 0 ? sum([for pool in var.worker_pools : pool.count]) : 0}
+    - Total Nodes: ${var.controller_count + (length(var.worker_pools) > 0 ? sum([for pool in var.worker_pools : pool.count]) : 0)}
 
     For more information, visit: https://docs.replicated.com/vendor/embedded-overview
   EOT
