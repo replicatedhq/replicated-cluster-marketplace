@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Data source to get project information
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
 locals {
+  # Resolve the actual service account email (handle "default" case)
+  actual_service_account_email = var.service_account_email == "default" ? "${data.google_project.project.number}-compute@developer.gserviceaccount.com" : var.service_account_email
+
   network_interfaces = [
     for i, network in var.networks : {
       network     = network
@@ -21,6 +29,9 @@ locals {
       nat_ip      = length(var.external_ips) > i && var.external_ips[i] != "NONE" && var.external_ips[i] != "EPHEMERAL" ? var.external_ips[i] : null
     }
   ]
+
+  # Resolve the actual admin password (provided or generated)
+  admin_password = var.admin_console_password != "" ? var.admin_console_password : random_password.admin_password[0].result
 
   # Primary controller metadata
   primary_controller_metadata = {
@@ -41,7 +52,9 @@ locals {
       replicated_app_slug     = var.replicated_app_slug
       replicated_channel_slug = var.replicated_channel_slug
       replicated_license_file = var.replicated_license_file
-      admin_console_password  = var.admin_console_password
+      admin_console_password  = local.admin_password
+      project_id              = var.project_id
+      deployment_name         = var.goog_cm_deployment_name
     })
   }
 
@@ -62,6 +75,35 @@ locals {
   primary_controller_nat_ip     = length(google_compute_instance.primary_controller.network_interface) > 0 && length(google_compute_instance.primary_controller.network_interface[0].access_config) > 0 ? google_compute_instance.primary_controller.network_interface[0].access_config[0].nat_ip : null
   primary_controller_private_ip = length(google_compute_instance.primary_controller.network_interface) > 0 ? google_compute_instance.primary_controller.network_interface[0].network_ip : null
   primary_controller_ip         = coalesce(local.primary_controller_nat_ip, local.primary_controller_private_ip)
+}
+
+# Generate random password if not provided by user
+# Use only alphanumeric + safe special chars (no shell metacharacters)
+resource "random_password" "admin_password" {
+  count            = var.admin_console_password == "" ? 1 : 0
+  length           = 25
+  special          = true
+  override_special = "-_."  # Only use safe characters that won't break shell scripts
+}
+
+# Secret Manager Secret for Admin Console Password
+resource "google_secret_manager_secret" "admin_password" {
+  project   = var.project_id
+  secret_id = "${var.goog_cm_deployment_name}-admin-password"
+
+  replication {
+    auto {}
+  }
+
+  labels = {
+    deployment = var.goog_cm_deployment_name
+  }
+}
+
+# Store the password in Secret Manager (for users to retrieve later)
+resource "google_secret_manager_secret_version" "admin_password" {
+  secret      = google_secret_manager_secret.admin_password.id
+  secret_data = local.admin_password
 }
 
 # Primary Controller (always exactly 1)
@@ -107,6 +149,12 @@ resource "google_compute_instance" "primary_controller" {
     goog-dm = var.goog_cm_deployment_name
     role    = "controller"
   }
+
+  # Ensure secret and password are stored before primary controller starts (for user retrieval)
+  depends_on = [
+    google_secret_manager_secret.admin_password,
+    google_secret_manager_secret_version.admin_password
+  ]
 
   lifecycle {
     ignore_changes = [
@@ -158,9 +206,10 @@ resource "google_compute_instance" "additional_controllers" {
 
     # Cloud-init user data for joining as controller
     user-data = templatefile("${path.module}/cloud-init-node.yaml", {
-      controller_url = "https://${google_compute_instance.primary_controller.network_interface[0].network_ip}:30000"
-      controller_ip  = google_compute_instance.primary_controller.network_interface[0].network_ip
-      node_roles     = "controller"
+      controller_url         = "https://${google_compute_instance.primary_controller.network_interface[0].network_ip}:30000"
+      controller_ip          = google_compute_instance.primary_controller.network_interface[0].network_ip
+      node_roles             = "controller"
+      admin_console_password = local.admin_password
     })
   }
 
@@ -228,9 +277,10 @@ resource "google_compute_instance" "workers" {
 
     # Cloud-init user data for joining as worker
     user-data = templatefile("${path.module}/cloud-init-node.yaml", {
-      controller_url = "https://${google_compute_instance.primary_controller.network_interface[0].network_ip}:30000"
-      controller_ip  = google_compute_instance.primary_controller.network_interface[0].network_ip
-      node_roles     = each.value.roles
+      controller_url         = "https://${google_compute_instance.primary_controller.network_interface[0].network_ip}:30000"
+      controller_ip          = google_compute_instance.primary_controller.network_interface[0].network_ip
+      node_roles             = each.value.roles
+      admin_console_password = local.admin_password
     })
   }
 
