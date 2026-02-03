@@ -1,0 +1,352 @@
+#cloud-config
+package_update: true
+packages:
+  - python3
+
+write_files:
+  - path: /opt/kots_join_node.py
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env python3
+      """
+      Wait for a Replicated Embedded Cluster to be ready for new nodes,
+      then log in to KOTS (Admin Console) and generate a node join command for one
+      or more roles using only the Python standard library.
+      """
+
+      import argparse
+      import http.client
+      import json
+      import socket
+      import ssl
+      import subprocess
+      import sys
+      import time
+      import traceback
+      from http.cookies import SimpleCookie
+      from urllib.parse import urlparse
+
+
+      class KotsClient:
+          def __init__(self, base_url, insecure_tls=True):
+              parsed = urlparse(base_url)
+              if not parsed.scheme:
+                  parsed = urlparse("https://" + base_url)
+
+              self.scheme = parsed.scheme
+              self.host = parsed.hostname
+              if not self.host:
+                  raise ValueError(f"Invalid base URL: {base_url}")
+
+              if parsed.port:
+                  self.port = parsed.port
+              else:
+                  self.port = 443 if self.scheme == "https" else 80
+
+              self.insecure_tls = insecure_tls
+              self.cookie_header = None
+
+          def _get_connection(self):
+              if self.scheme == "https":
+                  if self.insecure_tls:
+                      context = ssl._create_unverified_context()
+                  else:
+                      context = ssl.create_default_context()
+                  return http.client.HTTPSConnection(self.host, self.port, context=context)
+              else:
+                  return http.client.HTTPConnection(self.host, self.port)
+
+          def _update_cookie_from_response(self, response):
+              set_cookie = response.getheader("Set-Cookie")
+              if not set_cookie:
+                  return
+
+              cookies = SimpleCookie()
+              cookies.load(set_cookie)
+              if "signed-token" in cookies:
+                  morsel = cookies["signed-token"]
+                  self.cookie_header = f'signed-token="{morsel.value}"'
+
+          def request(self, method, path, body=None, headers=None):
+              conn = self._get_connection()
+              headers = dict(headers or {})
+
+              if self.cookie_header:
+                  headers.setdefault("Cookie", self.cookie_header)
+
+              conn.request(method, path, body=body, headers=headers)
+              response = conn.getresponse()
+              data = response.read()
+              self._update_cookie_from_response(response)
+              conn.close()
+              return response.status, response.reason, data
+
+          def get_metadata(self):
+              status, reason, data = self.request("GET", "/api/v1/metadata")
+              if status != 200:
+                  raise RuntimeError(f"Metadata request failed: {status} {reason}")
+              try:
+                  return json.loads(data.decode("utf-8"))
+              except json.JSONDecodeError as e:
+                  raise RuntimeError(f"Failed to decode metadata JSON: {e}") from e
+
+          def login(self, password):
+              body_obj = {"password": password}
+              body = json.dumps(body_obj).encode("utf-8")
+              headers = {"Content-Type": "application/json"}
+
+              status, reason, data = self.request("POST", "/api/v1/login", body=body, headers=headers)
+              if status != 200:
+                  msg = data.decode("utf-8", errors="ignore")
+                  raise RuntimeError(f"Login failed: {status} {reason} - {msg}")
+
+              if not self.cookie_header:
+                  raise RuntimeError("Login succeeded but no signed-token cookie was set")
+
+          def generate_node_join_command(self, roles):
+              body_obj = {"roles": roles}
+              body = json.dumps(body_obj).encode("utf-8")
+              headers = {"Content-Type": "application/json"}
+
+              status, reason, data = self.request(
+                  "POST",
+                  "/api/v1/embedded-cluster/generate-node-join-command",
+                  body=body,
+                  headers=headers,
+              )
+              if status != 200:
+                  msg = data.decode("utf-8", errors="ignore")
+                  raise RuntimeError(
+                      f"generate-node-join-command failed: {status} {reason} - {msg}"
+                  )
+
+              try:
+                  return json.loads(data.decode("utf-8"))
+              except json.JSONDecodeError as e:
+                  raise RuntimeError(f"Failed to decode join-command JSON: {e}") from e
+
+
+      def execute_commands(commands):
+          """
+          Execute each command string in order using the system shell.
+          Raises RuntimeError if any command fails.
+          """
+
+          if not commands:
+              print("[WARN] No commands to execute.", file=sys.stderr)
+              return
+
+          print("[INFO] Executing join commands:", file=sys.stderr)
+
+          for cmd in commands:
+              print(f"[INFO] -> {cmd}", file=sys.stderr)
+              result = subprocess.run(cmd, shell=True)
+              if result.returncode != 0:
+                  raise RuntimeError(f"Command failed with exit code {result.returncode}: {cmd}")
+
+
+      def local_node_is_ready() -> bool:
+          """
+          The embedded cluster app slug installer can be a bit finnicky at times.
+          Sometimes it'll just try to join endlessly even if it's already succeeded.
+          To avoid this, we'll just use the packaged kubectl that comes with the k0s
+          cli to get if there's a ready node with the same name as the hostname of the
+          machine this script is running on.
+          """
+          hostname = socket.gethostname()
+
+          cmd = [
+              "k0s",
+              "kubectl",
+              "get",
+              "node",
+              hostname,
+              "-o",
+              "json",
+          ]
+
+          try:
+              result = subprocess.run(
+                  cmd,
+                  capture_output=True,
+                  text=True,
+                  check=False,
+              )
+          except Exception:
+              return False
+
+          if result.returncode != 0:
+              return False
+
+          try:
+              node = json.loads(result.stdout)
+          except json.JSONDecodeError:
+              return False
+
+          conditions = node.get("status", {}).get("conditions", []) or []
+          for cond in conditions:
+              if cond.get("type") == "Ready":
+                  return cond.get("status") == "True"
+
+          return False
+
+
+      def raise_for_timeout(
+          start_time: float,
+          timeout: int,
+      ):
+          elapsed = time.time() - start_time
+          if elapsed > timeout:
+              raise TimeoutError(
+                  f"Timed out after {timeout} seconds while waiting for embedded cluster "
+                  "to become available."
+              )
+
+
+      def parse_args():
+          parser = argparse.ArgumentParser(
+              description="Generate Replicated Embedded Cluster node join command via KOTS API"
+          )
+          parser.add_argument(
+              "--url",
+              required=True,
+              help="Base URL of the KOTS Admin Console",
+          )
+          parser.add_argument(
+              "--password",
+              required=True,
+              help="Shared password for KOTS login",
+          )
+          parser.add_argument(
+              "--roles",
+              required=True,
+              nargs="+",
+              choices=["controller", "worker", "gpu"],
+              help="Node role(s) to request a join command for",
+          )
+          parser.add_argument(
+              "--poll-interval",
+              type=int,
+              default=10,
+              help="Seconds between metadata polls (default: 10)",
+          )
+          parser.add_argument(
+              "--timeout",
+              type=int,
+              default=600,
+              help="Maximum seconds to wait for cluster readiness (default: 600)",
+          )
+          parser.add_argument(
+              "--insecure-tls",
+              action="store_true",
+              default=True,
+              help="Skip TLS verification (like curl -k). Enabled by default.",
+          )
+          return parser.parse_args()
+
+
+      def main():
+          args = parse_args()
+
+          client = KotsClient(args.url, insecure_tls=args.insecure_tls)
+
+          start_time = time.time()
+
+          print("[INFO] Waiting for Embedded Cluster to be ready...", file=sys.stderr)
+          
+          while True:
+              raise_for_timeout(start_time, args.timeout)
+              
+              try:
+                  _ = client.get_metadata()
+                  break
+              except Exception as e:
+                  print(
+                      f"[INFO] Embedded Cluster is not ready ({e}). Retrying in {args.poll_interval} seconds...",
+                      file=sys.stderr,
+                  )
+
+              time.sleep(args.poll_interval)
+
+          print(
+              f"[INFO] Embedded Cluster is ready!",
+              file=sys.stderr,
+          )
+
+          while True:
+              raise_for_timeout(start_time, args.timeout)
+
+              if local_node_is_ready():
+                  return
+
+              try:
+                  print("[INFO] Logging in to KOTS...", file=sys.stderr)
+                  
+                  client.login(args.password)
+                  
+                  print(f"[INFO] Generating node join command for roles: {args.roles}", file=sys.stderr)
+                  
+                  resp = client.generate_node_join_command(args.roles)
+
+                  commands = resp.get("commands") or []
+                  if not commands:
+                      raise RuntimeError("No commands returned from API.")
+                  
+                  join_cmd = commands.pop()
+
+                  commands.append(f"{join_cmd} --ignore-host-preflights --yes")
+
+                  execute_commands(commands)
+                  sys.exit()
+              except Exception as e:
+                  print(
+                      f"[INFO] Failed to join node ({e}). Retrying in {args.poll_interval} seconds...",
+                      file=sys.stderr,
+                  )
+
+              time.sleep(args.poll_interval)
+
+
+      if __name__ == "__main__":
+          try:
+              main()
+          except Exception as e:
+              print(f"[ERROR] Unexpected error occurred: {e}", file=sys.stderr)
+              traceback.print_exc()
+
+          sys.exit(0)
+  - path: /usr/local/bin/install-tooling.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/bin/bash
+      mkdir -p /home/ADMIN_USERNAME/.kube
+      k0s kubeconfig admin > /home/ADMIN_USERNAME/.kube/config
+      snap install --classic kubectl
+      curl https://kots.io/install | bash
+      echo "source <(kubectl completion bash)" >> /home/ADMIN_USERNAME/.bashrc
+      echo 'alias k="kubectl"' >> /home/ADMIN_USERNAME/.bashrc
+  - path: /usr/local/bin/run-kots-join.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      kotsUrl="KOTS_URL"
+      nodeRoles="NODE_ROLES"
+
+      echo "[INFO] Running KOTS join generator for roles: ${nodeRoles}" >&2
+      token=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/' -H "Metadata: true" | jq -r '.access_token')
+      kotsPassword=$(curl -s -H "Authorization: Bearer ${token}" "KOTS_PASSWORD?api-version=2025-07-01" | jq -r '.value')
+      python3 /opt/kots_join_node.py \
+      --url "${kotsUrl}" \
+      --password "${kotsPassword}" \
+      --roles ${nodeRoles} \
+      --timeout 1200
+
+      /usr/local/bin/install-tooling.sh
+
+runcmd:
+  - [/usr/local/bin/run-kots-join.sh]
