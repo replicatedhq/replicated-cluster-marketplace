@@ -131,8 +131,8 @@ output "admin_console_url" {
 }
 
 output "admin_console_password" {
-  description = "Admin console password (stored on primary controller at /var/lib/embedded-cluster/admin-console-password)"
-  value       = "SSH to primary controller and run: sudo cat /var/lib/embedded-cluster/admin-console-password"
+  description = "Admin console password (stored in Google Cloud Secret Manager)"
+  value       = "Run: gcloud secrets versions access latest --secret=\"${var.goog_cm_deployment_name}-admin-password\" --project=\"${var.project_id}\""
 }
 
 output "application_url" {
@@ -216,13 +216,12 @@ output "next_steps" {
     1. Access the Admin Console:
        ${local.primary_controller_nat_ip != null ? "https://${local.primary_controller_nat_ip}:30000" : "https://${local.primary_controller_private_ip}:30000"}
 
-    2. SSH into the primary controller:
-       ${local.primary_controller_nat_ip != null ? "gcloud compute ssh ${google_compute_instance.primary_controller.name} --zone=${google_compute_instance.primary_controller.zone}" : "Use gcloud compute ssh with appropriate access"}
+    2. Get the admin console password:
+       gcloud secrets versions access latest --secret="${var.goog_cm_deployment_name}-admin-password" --project="${var.project_id}"
 
-    3. Get the admin console password (via SSH):
-       sudo cat /var/lib/embedded-cluster/admin-console-password
+    3. Log in to the admin console with the password
 
-    4. Upload your Replicated license file in the admin console
+    4. Your Replicated license is pre-configured
 
     5. Configure and deploy your application through the admin console
 

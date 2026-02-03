@@ -11,41 +11,6 @@ write_files:
     content: |
       ${indent(6, replicated_license_file)}
 
-  - path: /usr/local/bin/setup-password-server.sh
-    owner: root:root
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      set -euo pipefail
-
-      # Generate or use provided password
-      if [ -z "${admin_console_password}" ] || [ "${admin_console_password}" = "" ]; then
-        ADMIN_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
-        echo "[$(date)] Generated random admin password" | tee -a /var/log/embedded-cluster-install.log
-      else
-        ADMIN_PASSWORD="${admin_console_password}"
-        echo "[$(date)] Using provided admin password" | tee -a /var/log/embedded-cluster-install.log
-      fi
-
-      # Create directory for password storage
-      mkdir -p /var/lib/embedded-cluster
-
-      # Save the password
-      echo "$ADMIN_PASSWORD" > /var/lib/embedded-cluster/admin-console-password
-      chmod 600 /var/lib/embedded-cluster/admin-console-password
-
-      # Create a simple HTTP server to serve the password to worker nodes
-      mkdir -p /var/lib/embedded-cluster/share
-      echo "$ADMIN_PASSWORD" > /var/lib/embedded-cluster/share/password
-      chmod 644 /var/lib/embedded-cluster/share/password
-
-      # Start a simple python HTTP server on port 8888 to serve the password
-      cd /var/lib/embedded-cluster/share
-      nohup python3 -m http.server 8888 > /var/log/password-server.log 2>&1 &
-      echo $! > /var/run/password-server.pid
-
-      echo "[$(date)] Password server started on port 8888" | tee -a /var/log/embedded-cluster-install.log
-
   - path: /usr/local/bin/install-embedded-cluster.sh
     owner: root:root
     permissions: '0755'
@@ -64,8 +29,8 @@ write_files:
         sleep 2
       done
 
-      # Read password
-      ADMIN_PASSWORD=$(cat /var/lib/embedded-cluster/admin-console-password)
+      # Admin password is provided via template variable (not logged)
+      ADMIN_PASSWORD="${admin_console_password}"
 
       # Log start of installation
       echo "[$(date)] Starting Embedded Cluster installation..." | tee -a /var/log/embedded-cluster-install.log
@@ -73,12 +38,12 @@ write_files:
       # Change to the directory containing the installer
       cd /var/lib/${replicated_app_slug}
 
-      # Run the installation
+      # Run the installation (avoid logging password)
       echo "[$(date)] Running installation with ${replicated_app_slug} binary..." | tee -a /var/log/embedded-cluster-install.log
       sudo ./${replicated_app_slug} install \
         --license /etc/replicated/license.yaml \
         --admin-console-password "$ADMIN_PASSWORD" \
-        --airgap-bundle ${replicated_app_slug}.airgap 2>&1 | tee -a /var/log/embedded-cluster-install.log
+        --airgap-bundle ${replicated_app_slug}.airgap 2>&1 | grep -v "password" | tee -a /var/log/embedded-cluster-install.log || true
 
       echo "[$(date)] Installation complete!" | tee -a /var/log/embedded-cluster-install.log
 
@@ -100,7 +65,6 @@ runcmd:
   - 'echo "App: ${replicated_app_slug}" | tee -a /var/log/embedded-cluster-init.log'
   - 'echo "Channel: ${replicated_channel_slug}" | tee -a /var/log/embedded-cluster-init.log'
   - 'echo "License file written to /etc/replicated/license.yaml" | tee -a /var/log/embedded-cluster-init.log'
-  - /usr/local/bin/setup-password-server.sh
   - /usr/local/bin/install-embedded-cluster.sh
 
 final_message: |
@@ -109,7 +73,7 @@ final_message: |
   Access the admin console at: https://[INSTANCE_IP]:30000
 
   To get the admin console password:
-  sudo cat /var/lib/embedded-cluster/admin-console-password
+  gcloud secrets versions access latest --secret="${deployment_name}-admin-password" --project="${project_id}"
 
   To check installation logs:
   sudo tail -f /var/log/embedded-cluster-install.log

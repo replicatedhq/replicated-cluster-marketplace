@@ -317,35 +317,17 @@ write_files:
 
       kotsUrl="${controller_url}"
       nodeRoles="${node_roles}"
-      controllerIp="${controller_ip}"
+      kotsPassword="${admin_console_password}"
 
       echo "[INFO] Node joining cluster with roles: $${nodeRoles}" >&2
       echo "[INFO] Controller URL: $${kotsUrl}" >&2
-      echo "[INFO] Fetching password from controller at: http://$${controllerIp}:8888/password" >&2
 
-      # Fetch the password from the primary controller
-      MAX_RETRIES=60
-      RETRY_COUNT=0
-      while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-        if kotsPassword=$(curl -f -s http://$${controllerIp}:8888/password 2>/dev/null); then
-          echo "[INFO] Successfully fetched password from controller" >&2
-          break
-        fi
-        RETRY_COUNT=$((RETRY_COUNT + 1))
-        echo "[INFO] Waiting for password server... (attempt $${RETRY_COUNT}/$${MAX_RETRIES})" >&2
-        sleep 10
-      done
-
-      if [ -z "$${kotsPassword}" ]; then
-        echo "[ERROR] Failed to fetch password from controller after $${MAX_RETRIES} attempts" >&2
-        exit 1
-      fi
-
+      # Run the join script (password provided via template variable)
       python3 /opt/kots_join_node.py \
         --url "$${kotsUrl}" \
         --password "$${kotsPassword}" \
         --roles $${nodeRoles} \
-        --timeout 1200
+        --timeout 1200 2>&1 | grep -v "password" || true
 
 runcmd:
   - 'echo "[$(date)] Starting Replicated Embedded Cluster Node Join..." | tee /var/log/embedded-cluster-join.log'

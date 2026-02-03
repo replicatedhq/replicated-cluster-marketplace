@@ -32,13 +32,13 @@ For high availability and scalability, you can deploy:
 - **Primary Controller** - Bootstraps the cluster, runs `install` command
 - **Additional Controllers** - Join as controller nodes for HA (e.g., 3 total for HA)
 - **Worker Pools** - One or more pools of worker nodes with configurable roles and machine types
-- **Password Distribution** - Simple HTTP server on primary controller for secure password sharing
+- **Password Distribution** - Google Cloud Secret Manager for secure password sharing
 - **Internal Firewall Rules** - Automatic configuration for cluster communication (etcd, Kubernetes API, CNI)
 
 **Multi-Node Architecture:**
 1. Primary controller initializes cluster and generates admin password
-2. Password is served via internal HTTP server (port 8888)
-3. Additional controllers and workers fetch password and join cluster
+2. Password is stored in Google Cloud Secret Manager
+3. Additional controllers and workers fetch password from Secret Manager and join cluster
 4. All nodes communicate via private network with firewall-protected ports
 
 ## How It Works
@@ -48,7 +48,7 @@ For high availability and scalability, you can deploy:
 When the GCP instance boots for the first time, cloud-init automatically:
 
 1. **Writes the license file** to `/etc/replicated/license.yaml`
-2. **Generates a secure admin password** (25 characters, stored at `/var/lib/embedded-cluster/admin-console-password`)
+2. **Generates a secure admin password** (25 characters) and stores it in Google Cloud Secret Manager as `{deployment-name}-admin-password`
 3. **Runs the Embedded Cluster installer** from `/var/lib/marketplace-example/marketplace-example` with the provided license and password
 4. **Logs the installation process** to `/var/log/embedded-cluster-install.log`
 
@@ -70,6 +70,10 @@ sudo /var/lib/marketplace-example/marketplace-example install \
 2. **Terraform** >= 1.2 installed (for manual deployment)
 3. **Replicated Account** with application slug and channel
 4. **Replicated License File** (YAML format - required for installation)
+5. **Service Account Permissions** - The service account used by the instances needs:
+   - `roles/secretmanager.secretVersionManager` (for primary controller to create/store password)
+   - `roles/secretmanager.secretAccessor` (for all nodes to read password)
+   - Or `roles/secretmanager.admin` for full Secret Manager access
 
 The Embedded Cluster image (`marketplace-example-stable-ubuntu-24-04-lts`) is pre-configured in this marketplace offering and built from the [embedded-cluster-image](https://github.com/replicatedhq/replicated-cluster-marketplace/tree/main/embedded-cluster-image) repository.
 
@@ -142,17 +146,18 @@ After deployment completes, get the access information:
 
 ```bash
 terraform output admin_console_url
-terraform output ssh_command
 ```
 
-SSH into the instance and retrieve the admin console password:
+Retrieve the admin console password from Secret Manager:
 
 ```bash
-# SSH into the instance
-$(terraform output -raw ssh_command)
-
 # Get the admin console password
-sudo cat /var/lib/embedded-cluster/admin-console-password
+terraform output -raw admin_console_password
+
+# Or directly:
+gcloud secrets versions access latest \
+  --secret="<deployment-name>-admin-password" \
+  --project="<project-id>"
 ```
 
 ### 5. Monitor Installation
@@ -447,17 +452,20 @@ enable_8888          = false
    sudo tail -f /var/log/embedded-cluster-join.log
    ```
 
-2. Verify password server is running on primary controller:
+2. Verify password is stored in Secret Manager:
    ```bash
-   gcloud compute ssh <primary-controller> --zone=<zone>
-   sudo tail -f /var/log/password-server.log
-   ps aux | grep "python3 -m http.server 8888"
+   gcloud secrets versions access latest \
+     --secret="<deployment-name>-admin-password" \
+     --project="<project-id>"
    ```
 
-3. Test connectivity from worker to primary controller:
+3. Check if node has Secret Manager access:
    ```bash
-   # On worker node
-   curl http://<primary-controller-ip>:8888/password
+   # On worker/additional controller node
+   gcloud compute ssh <node-name> --zone=<zone>
+   gcloud secrets versions access latest \
+     --secret="<deployment-name>-admin-password" \
+     --project="<project-id>"
    ```
 
 4. Check internal firewall rules:
