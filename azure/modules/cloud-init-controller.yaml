@@ -1,0 +1,45 @@
+#cloud-config
+package_update: true
+packages:
+  - python3
+
+write_files:
+  - path: /var/lib/APPLICATION/license.yaml
+    owner: root:root
+    encoding: b64
+    content: LICENSE_BASE64
+    permissions: "0644"
+  - path: /usr/local/bin/install-tooling.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/bin/bash
+      mkdir -p /home/ADMIN_USERNAME/.kube
+      k0s kubeconfig admin > /home/ADMIN_USERNAME/.kube/config
+      snap install --classic kubectl
+      curl https://kots.io/install | bash
+      echo "source <(kubectl completion bash)" >> /home/ADMIN_USERNAME/.bashrc
+      echo 'alias k="kubectl"' >> /home/ADMIN_USERNAME/.bashrc
+
+  - path: /usr/local/bin/install-embedded-cluster.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/bin/bash
+      while true; do
+        SYNCED=$(timedatectl show -p NTPSynchronized --value)
+        if [ "$SYNCED" = "yes" ]; then
+          echo "Time is synchronized!"
+          break
+        fi
+        echo "Not synchronized yet... retrying in 2 seconds."
+        sleep 2
+      done
+
+      token=$(curl -s 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net/' -H "Metadata: true" | jq -r '.access_token')
+      kotsPassword=$(curl -s -H "Authorization: Bearer ${token}" "KOTS_PASSWORD?api-version=2025-07-01" | jq -r '.value')
+      APPLICATION install --license /var/lib/APPLICATION/license.yaml --ignore-host-preflights --yes --admin-console-password ${kotsPassword}
+      /usr/local/bin/install-tooling.sh
+
+runcmd:
+  - [/usr/local/bin/install-embedded-cluster.sh]
