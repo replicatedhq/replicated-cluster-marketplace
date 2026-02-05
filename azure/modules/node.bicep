@@ -1,6 +1,6 @@
 targetScope = 'resourceGroup'
 
-@description('Base name prefix to use for the Ceph controller VMs (e.g. "ceph"). The full VM name will be {prefix}-controller-{index}.')
+@description('Base name prefix to use for the controller VMs. The full VM name will be {prefix}-controller-{index}.')
 param namePrefix string
 
 @description('Node pool name formatted in after the name prefix used for all VMs. VM names will be {prefix}-{poolName}-{n}.')
@@ -29,8 +29,8 @@ param imageReference object
 @description('Admin username for the VM.')
 param adminUsername string
 
-@description('Resource ID of an existing Microsoft.Compute/sshPublicKeys resource containing the SSH public key for the admin user.')
-param sshPublicKeyResourceId string
+@description('SSH Public Key')
+param sshPublicKey string
 
 @description('Cloud-Init file contents.')
 param cloudInitData string = ''
@@ -85,11 +85,6 @@ var backendPoolAssociation = empty(backendPoolId) ? [] : [
 // Assumption: 1 TiB = 1024 GiB
 var dataDiskSizeGiB = dataDiskSizeTiB * 1024
 
-// Retrieve SSH public key from existing sshPublicKeys resource via its resourceId.
-// Using API version 2023-07-01 of Microsoft.Compute/sshPublicKeys.
-var sshPublicKeyObject = reference(sshPublicKeyResourceId, '2023-07-01', 'Full')
-var sshPublicKey = sshPublicKeyObject.properties.publicKey
-
 // Premium SSD v2 data disks (zonal, LRS)
 resource dataDisks 'Microsoft.Compute/disks@2025-01-02' = [for i in range(0, dataDiskCount): {
   name: '${vmName}-osd-${i}'
@@ -101,7 +96,7 @@ resource dataDisks 'Microsoft.Compute/disks@2025-01-02' = [for i in range(0, dat
     name: 'PremiumV2_LRS'
   }
   properties: {
-    // Empty raw disk attached to the VM for Ceph OSDs.
+    // Empty raw disk attached to the VM
     creationData: {
       createOption: 'Empty'
     }
@@ -258,7 +253,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-@description('Name of the VM representing this Ceph node.')
+@description('Name of the VM representing this node.')
 output vmName string = vm.name
 
 @description('Primary private IP address of the VM NIC.')

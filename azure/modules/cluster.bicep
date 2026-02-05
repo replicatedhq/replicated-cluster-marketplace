@@ -1,9 +1,9 @@
 targetScope = 'resourceGroup'
 
 @description('Azure region for the deployment. Ideally should support Availability Zones.')
-param location string = 'eastus'
+param location string = resourceGroup().location
 
-@description('Name prefix used for all Ceph controller VMs. VM names will be {prefix}-controller-{n}.')
+@description('Name prefix used for all controller VMs. VM names will be {prefix}-controller-{n}.')
 @minLength(1)
 @maxLength(16)
 param namePrefix string
@@ -13,7 +13,8 @@ param namePrefix string
 param controlPlaneNodeCount int = 3
 
 @description('Default VM size/SKU to use for all nodes unless overridden per node pool.')
-param vmSku string = 'Standard_D8s_v6'
+param vmSku string = 'Standard_D2ds_v4'
+//param vmSku string = 'Standard_D8s_v6'
 
 @description('Optional node pools to create. Each entry must include poolName and vmCount. Optional overrides: nodeRoles (default worker), vmSku, dataDiskCountPerVm, dataDiskSizeTiB, dataDiskIOPSReadWrite, dataDiskMBpsReadWrite.')
 param nodePools array = []
@@ -42,18 +43,20 @@ param subnetAddressPrefix string = '10.254.0.0/24'
 @description('Name of the NSG to create when not using an existing NSG.')
 param nsgName string = '${application}-nsg'
 
+@secure()
+@description('License yaml for Replicated application')
 param license string
 
 @description('Ingress ports to allow from Internet to the node subnet.')
 param allowedIngressPorts array = [
   80
   443
-//  2746
-//  6443
-//  8888
-//  9090
-//  9093
-//  9443
+  2746
+  6443
+  8888
+  9090
+  9093
+  9443
   30000
 ]
 
@@ -118,7 +121,7 @@ param adminUsername string = 'ubuntu'
 
 @description('Resource ID of an existing Microsoft.Compute/sshPublicKeys resource containing the SSH public key to use for all VMs.')
 @minLength(1)
-param sshPublicKeyResourceId string
+param sshPublicKey string
 
 @description('Number of Premium SSD v2 data disks to attach to each VM.')
 @minValue(1)
@@ -139,20 +142,16 @@ param dataDiskMBpsReadWrite int = 300
 @description('Common tags to apply to all resources created by this module.')
 param tags object = {}
 
-@description('Image reference for the VMs. Defaults to Canonical Ubuntu 24.04 LTS (Gen2): Canonical:ubuntu-24_04-lts:server:latest.')
+@description('Image reference for the VMs.')
 param imageReference object = {
-  publisher: 'Canonical'
-  offer: 'ubuntu-24_04-lts'
-  sku: 'server'
-  version: 'latest'
+  id: '{IMAGE_ID}'
 }
 
 @description('Replicated release channel')
-param releaseChannel string = 'development'
+param releaseChannel string = '{CHANNEL}'
 
-@secure()
 @description('Replicated application')
-param application string
+param application string = '{APPLICATION}'
 
 @secure()
 @description('KOTS password')
@@ -160,7 +159,7 @@ param kotsPassword string
 
 var resolvedNodePools = [for pool in nodePools: {
   poolName: pool.poolName
-  vmCount: pool.vmCount
+  vmCount: json(pool.vmCount)
   nodeRoles: contains(pool, 'nodeRoles') ? pool.nodeRoles : 'worker'
   vmSku: contains(pool, 'vmSku') ? pool.vmSku : vmSku
   dataDiskCountPerVm: contains(pool, 'dataDiskCountPerVm') ? pool.dataDiskCountPerVm : dataDiskCountPerVm
@@ -234,7 +233,7 @@ module controlPlane 'control-plane.bicep' = {
     backendPoolId: loadBalancer.outputs.backendPoolId
     imageReference: imageReference
     adminUsername: adminUsername
-    sshPublicKeyResourceId: sshPublicKeyResourceId
+    sshPublicKey: sshPublicKey
     dataDiskCountPerVm: dataDiskCountPerVm
     dataDiskSizeTiB: dataDiskSizeTiB
     dataDiskIOPSReadWrite: dataDiskIOPSReadWrite
@@ -261,7 +260,7 @@ module nodePoolModules 'node-pool.bicep' = [for pool in resolvedNodePools: {
     nsgId: network.outputs.nsgId
     imageReference: imageReference
     adminUsername: adminUsername
-    sshPublicKeyResourceId: sshPublicKeyResourceId
+    sshPublicKey: sshPublicKey
     dataDiskCountPerVm: pool.dataDiskCountPerVm
     dataDiskSizeTiB: pool.dataDiskSizeTiB
     dataDiskIOPSReadWrite: pool.dataDiskIOPSReadWrite
@@ -275,10 +274,10 @@ module nodePoolModules 'node-pool.bicep' = [for pool in resolvedNodePools: {
   }
 }]
 
-@description('Names of all Ceph controller VMs.')
+@description('Names of all controller VMs.')
 output controlPlaneNodeNames array = controlPlane.outputs.vmNames
 
-@description('Primary private IP addresses of all Ceph controller VMs.')
+@description('Primary private IP addresses of all controller VMs.')
 output controlPlanePrivateIpAddresses array = controlPlane.outputs.vmPrivateIpAddresses
 
 @description('Names of all node pool VMs, grouped by pool in the same order as nodePools.')
