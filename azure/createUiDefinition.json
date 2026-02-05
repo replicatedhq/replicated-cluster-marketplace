@@ -1,0 +1,323 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "basics": [
+      {
+        "name": "namePrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Name Prefix",
+        "placeholder": "Name Prefix",
+        "defaultValue": "",
+        "toolTip": "Prefix that will be prepended to all VMs deployed",
+        "constraints": {
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "kotsPassword",
+        "type": "Microsoft.Common.PasswordBox",
+        "label": {
+          "password": "Admin Console Password",
+          "confirmPassword": "Confirm password"
+        },
+        "toolTip": "This password will be used for the Admin Console that will be used to finish deploying the application.",
+        "constraints": {
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "license",
+        "type": "Microsoft.Common.FileUpload",
+        "label": "Replicated license",
+        "toolTip": "Your Replicated license yaml file for the application.",
+        "constraints": {
+          "required": true,
+          "accept": ".yaml,application/x-yaml"
+        },
+        "options": {
+          "multiple": false,
+          "uploadMode": "file",
+          "openMode": "binary"
+        },
+        "visible": true
+      },
+      {
+        "name": "adminUsername",
+        "type": "Microsoft.Common.TextBox",
+        "label": "VM admin username",
+        "placeholder": "VM admin username",
+        "defaultValue": "ubuntu",
+        "toolTip": "User name for the Linux admin user",
+        "constraints": {
+          "required": true
+        },
+        "visible": true
+      },
+      {
+        "name": "sshPublicKey",
+        "type": "Microsoft.Compute.CredentialsCombo",
+        "label": {
+          "authenticationType": "Authentication type",
+          "password": "Password",
+          "confirmPassword": "Confirm password",
+          "sshPublicKey": "SSH public key"
+        },
+        "toolTip": {
+          "authenticationType": "",
+          "password": "",
+          "sshPublicKey": ""
+        },
+        "constraints": {
+          "required": true,
+          "customPasswordRegex": "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{12,}$",
+          "customValidationMessage": "The password must be alphanumeric, contain at least 12 characters, and have at least 1 letter and 1 number."
+        },
+        "options": {
+          "hideConfirmation": false,
+          "hidePassword": true
+        },
+        "osPlatform": "Linux",
+        "visible": true
+      }
+    ],
+    "steps": [
+      {
+        "name": "network",
+        "label": "Network",
+        "subLabel": {
+          "preValidation": "Configure the network",
+          "postValidation": "Completed"
+        },
+        "elements": [
+          {
+            "name": "vnet",
+            "type": "Microsoft.Network.VirtualNetworkCombo",
+            "label": {
+              "virtualNetwork": "Virtual network",
+              "subnets": "Subnets"
+            },
+            "toolTip": {
+              "virtualNetwork": "",
+              "subnets": ""
+            },
+            "defaultValue": {
+              "name": "[concat(basic('namePrefix'), '-vnet')]",
+              "addressPrefixSize": "/16"
+            },
+            "constraints": {
+              "minAddressPrefixSize": "/16"
+            },
+            "options": {
+              "hideExisting": false
+            },
+            "subnets": {
+              "workloadSubnet": {
+                "label": "",
+                "defaultValue": {
+                  "name": "default",
+                  "addressPrefixSize": "/24"
+                },
+                "constraints": {
+                  "minAddressPrefixSize": "/24",
+                  "minAddressCount": 12,
+                  "requireContiguousAddresses": true
+                }
+              }
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "controlPlane",
+        "label": "Control Plane",
+        "subLabel": {
+          "preValidation": "Configure the control plane",
+          "postValidation": "Completed"
+        },
+        "elements": [
+          {
+            "name": "controlPlaneNodeCount",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Number of controller nodes",
+            "defaultValue": "3",
+            "toolTip": "Use only allowed characters",
+            "placeholder": "",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[0-9]{1,2}$",
+                  "message": "Only numbers are allowed"
+                }
+              ]
+            },
+            "visible": true
+          },
+          {
+            "name": "controlPlaneNodeSize",
+            "type": "Microsoft.Compute.SizeSelector",
+            "label": "Size",
+            "toolTip": "",
+            "recommendedSizes": ["Standard_D2ds_v4"],
+            "options": {
+              "hideDiskTypeFilter": false
+            },
+            "osPlatform": "Linux",
+            "count": "[int(steps('controlPlane').controlPlaneNodeCount)]",
+            "visible": true
+          },
+          {
+            "name": "dataDiskCountPerVm",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Number of Data Disks Per VM",
+            "defaultValue": "1",
+            "toolTip": "Use only allowed characters",
+            "placeholder": "",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[0-9]{1,2}$",
+                  "message": "Only numbers are allowed"
+                }
+              ]
+            },
+            "visible": true
+          },
+          {
+            "name": "dataDiskSizeTiB",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Data Disk Size (TiB)",
+            "defaultValue": "1",
+            "toolTip": "Use only allowed characters",
+            "placeholder": "",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[0-9]{1,2}$",
+                  "message": "Only numbers are allowed"
+                }
+              ]
+            },
+            "visible": true
+          },
+          {
+            "name": "enableAcceleratedNetworking",
+            "type": "Microsoft.Common.CheckBox",
+            "label": "Enabled Accelerated Networking"
+          }
+        ]
+      },
+      {
+        "name": "nodePools",
+        "label": "Node Pools",
+        "subLabel": {
+          "preValidation": "Configure node pools",
+          "postValidation": "Completed"
+        },
+        "elements": [
+          {
+            "name": "nodePools",
+            "ariaLabel": "Enter node pool information",
+            "type": "Microsoft.Common.EditableGrid",
+            "label": "Node pools",
+            "constraints": {
+              "width": "Full",
+              "rows": {
+                "count": {
+                  "min": 0
+                }
+              },
+              "columns": [
+                {
+                  "id": "poolName",
+                  "header": "Pool Name",
+                  "width": "3fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "label": "Pool Name",
+                    "defaultValue": "",
+                    "toolTip": "",
+                    "placeholder": "",
+                    "visible": true
+                  }
+                },
+                {
+                  "id": "vmCount",
+                  "header": "Number of Nodes",
+                  "width": "1fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "label": "Number of nodes",
+                    "defaultValue": "3",
+                    "toolTip": "Use only allowed characters",
+                    "placeholder": "3",
+                    "constraints": {
+                      "validations": [
+                        {
+                          "regex": "^[0-9]{1,2}$",
+                          "message": "Only numbers are allowed"
+                        }
+                      ]
+                    },
+                    "visible": true
+                  }
+                },
+                {
+                  "id": "vmSku",
+                  "header": "Node VM Size",
+                  "width": "3fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "label": "Node VM Size",
+                    "defaultValue": "",
+                    "toolTip": "",
+                    "placeholder": "Standard_NC4as_T4_v3",
+                    "visible": true
+                  }
+                },
+                {
+                  "id": "nodeRoles",
+                  "header": "Node Role",
+                  "width": "3fr",
+                  "element": {
+                    "type": "Microsoft.Common.TextBox",
+                    "label": "Node role",
+                    "defaultValue": "",
+                    "toolTip": "",
+                    "placeholder": "gpu",
+                    "visible": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "location": "[location()]",
+      "namePrefix": "[basics('namePrefix')]",
+      "kotsPassword": "[basics('kotsPassword')]",
+      "license": "[basics('license')]",
+      "adminUsername": "[basics('adminUsername')]",
+      "sshPublicKey": "[basics('sshPublicKey').sshPublicKey]",
+      "vnetName": "[steps('network').vnet.name]",
+      "vnetAddressPrefix": "[steps('network').vnet.addressPrefix]",
+      "subnetName": "[steps('network').vnet.subnets.workloadSubnet.name]",
+      "subnetAddressPrefix": "[steps('network').vnet.subnets.workloadSubnet.addressPrefix]",
+      "controlPlaneNodeCount": "[int(steps('controlPlane').controlPlaneNodeCount)]",
+      "vmSku": "[steps('controlPlane').controlPlaneNodeSize]",
+      "dataDiskCountPerVm": "[int(steps('controlPlane').dataDiskCountPerVm)]",
+      "dataDiskSizeTiB": "[int(steps('controlPlane').dataDiskSizeTiB)]",
+      "enableAcceleratedNetworking": "[steps('controlPlane').enableAcceleratedNetworking]",
+      "nodePools": "[steps('nodePools').nodePools]"
+    }
+  }
+}

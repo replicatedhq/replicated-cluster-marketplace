@@ -31,7 +31,7 @@ param imageReference object
 param adminUsername string
 
 @description('Resource ID of an existing Microsoft.Compute/sshPublicKeys resource containing the SSH public key to use for all VMs.')
-param sshPublicKeyResourceId string
+param sshPublicKey string
 
 @description('Number of Premium SSD v2 data disks to attach to each controller VM.')
 param dataDiskCountPerVm int
@@ -96,7 +96,7 @@ module primaryController 'node.bicep' = {
     nsgId: nsgId
     imageReference: imageReference
     adminUsername: adminUsername
-    sshPublicKeyResourceId: sshPublicKeyResourceId
+    sshPublicKey: sshPublicKey
     cloudInitData: cloudInitPrimaryControllerRendered
     dataDiskCount: dataDiskCountPerVm
     dataDiskSizeTiB: dataDiskSizeTiB
@@ -135,7 +135,7 @@ module extraControllerNodes 'node.bicep' = [for i in range(1, vmCount - 1): {
     nsgId: nsgId
     imageReference: imageReference
     adminUsername: adminUsername
-    sshPublicKeyResourceId: sshPublicKeyResourceId
+    sshPublicKey: sshPublicKey
     cloudInitData: cloudInitExtraControllerRendered
     dataDiskCount: dataDiskCountPerVm
     dataDiskSizeTiB: dataDiskSizeTiB
