@@ -1,6 +1,6 @@
-# Replicated Cluster Marketplace
+# Replicated → Cloud Marketplace
 
-Reference implementations for deploying [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview) applications through AWS, GCP, and Azure cloud marketplaces.
+Examples and tools to automate the creation of AWS, GCP, and Azure Cloud marketplace images. For now, requires [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview):
 
 - **Image Builder** ([embedded-cluster-image/](./embedded-cluster-image/)) - Packer automation to create cloud images with your application
 - **AWS Example** ([aws/](./aws/)) - CloudFormation + Lambda with automated licensing (based on SlackerNews)
