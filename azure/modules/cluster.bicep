@@ -44,7 +44,7 @@ param subnetAddressPrefix string = '10.254.0.0/24'
 param nsgName string = '${application}-nsg'
 
 @secure()
-@description('License yaml for Replicated application')
+@description('Base64 encoded yaml for Replicated application')
 param license string
 
 @description('Ingress ports to allow from Internet to the node subnet.')
@@ -62,7 +62,7 @@ param allowedIngressPorts array = [
 
 @description('Tags to apply to network resources, merged with common tags.')
 param networkTags object = {
-  Owner: 'platform-core'
+  Owner: ''
   Ephemeral: 'no'
 }
 
@@ -119,7 +119,7 @@ param enableAcceleratedNetworking bool = true
 @minLength(1)
 param adminUsername string = 'ubuntu'
 
-@description('Resource ID of an existing Microsoft.Compute/sshPublicKeys resource containing the SSH public key to use for all VMs.')
+@description('Public key that will be installed as an authorized key for the admin user on all VMs.')
 @minLength(1)
 param sshPublicKey string
 

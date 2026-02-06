@@ -1,11 +1,24 @@
-# Replicated → Cloud Marketplace
+# Replicated Cluster Marketplace
 
-Examples and tools to automate the creation of AWS, GCP, and Azure Cloud marketplace images. For now, requires [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview):
+Reference implementations for deploying [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview) applications through AWS, GCP, and Azure cloud marketplaces.
 
-- **Image Builder** ([embedded-cluster-image/](./embedded-cluster-image/)) - Packer automation to create cloud images with your application
-- **AWS Example** ([aws/](./aws/)) - CloudFormation + Lambda with automated licensing (based on SlackerNews)
-- **GCP Templates** ([gcp/](./gcp/)) - Terraform module with marketplace metadata
-- **Azure Templates** ([azure/](./azure/)) - Bicep modules with Portal UI definition
+## Repository Structure
+
+### [embedded-cluster-image/](./embedded-cluster-image/)
+
+Packer automation to create cloud images (AMIs for AWS, Compute Images for GCP, OVAs for vSphere) with your Replicated application pre-installed for air-gapped marketplace deployments.
+
+### [aws/](./aws/)
+
+CloudFormation + Lambda example for AWS Marketplace with automated customer licensing. Based on production SlackerNews deployment. Single-node architecture.
+
+### [gcp/](./gcp/)
+
+Terraform module with GCP Marketplace metadata for Blueprint submission. Supports single-node and multi-node HA deployments with Secret Manager integration.
+
+### [azure/](./azure/)
+
+Bicep templates with Azure Portal UI definition for Azure Marketplace Application offers. Multi-node support with load balancer and Key Vault integration.
 
 ## Getting Started
 
@@ -28,47 +41,20 @@ cd ../aws  # or gcp, azure
 # Follow platform-specific README instructions
 ```
 
-**→ See detailed guides in each subdirectory's README**
-
 ## Platform Comparison
 
 | Feature | AWS | GCP | Azure |
 |---------|-----|-----|-------|
-| **Sample App** | SlackerNews | (placeholder) | (placeholder) |
-| **Licensing** | Automated (Lambda + SNS) | Manual | Manual |
-| **Multi-node** | Single-node | HA + Workers | HA + Workers |
-| **Image Builder** | Packer | Packer | Not included |
-
-
-## To Customize…
-
-### AWS (SlackerNews Example)
-Replace SlackerNews-specific references with your application name.
-
-**→ [See aws/README.md for detailed steps](./aws/)**
-
-### GCP (marketplace-example Placeholder)
-Build image and set variables - no manual find/replace needed.
-
-**→ [See gcp/README.md for detailed steps](./gcp/)**
-
-### Azure (APPLICATION Placeholder)
-Replace placeholders throughout Bicep templates.
-
-**→ [See azure/README.md for detailed steps](./azure/)**
+| **Sample App** | SlackerNews (production) | marketplace-example (placeholder) | APPLICATION (placeholder) |
+| **IaC Tool** | CloudFormation + Terraform | Terraform | Bicep |
+| **Licensing** | ✅ Automated (Lambda + SNS) | Manual | Manual |
+| **Multi-node** | ❌ Single-node only | ✅ HA + Workers | ✅ HA + Workers |
+| **Image Builder** | ✅ Packer | ✅ Packer | ❌ Not included |
+| **Marketplace Status** | Production reference | Blueprint-ready | UI definition ready |
 
 
 ## Marketplace Submission
 
-Each platform requires different artifacts. See platform-specific READMEs for detailed submission guides:
-
 - **AWS**: AMI + CloudFormation + Product Load Form → [aws/README.md](./aws/)
 - **GCP**: Image + Terraform + metadata.yaml → [gcp/README.md](./gcp/)  
 - **Azure**: Image + Bicep + UI definition → [azure/README.md](./azure/)
-
-
-## License
-
-Copyright 2025 Replicated, Inc. Licensed under Apache License 2.0.
-
-See [LICENSE](./LICENSE) for details.
