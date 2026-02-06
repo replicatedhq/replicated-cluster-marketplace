@@ -1,4 +1,4 @@
-# Azure Managed Application - Replicated Cluster
+# Azure Managed Application - Replicated Embedded Cluster
 
 This repository contains the Bicep templates and UI definition for deploying a Replicated Embedded Cluster as an Azure Managed Application.
 

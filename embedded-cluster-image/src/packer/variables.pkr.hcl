@@ -142,6 +142,36 @@ variable "kms_key_id" {
   default = ""
 }
 
+variable "azure_subscription_id" {
+  type    = string
+}
+
+variable "azure_tenant_id" {
+  type    = string
+}
+
+variable "azure_client_id" {
+  type    = string
+}
+
+variable "azure_client_secret" {
+  type      = string
+  sensitive = true
+}
+
+variable "azure_sig_resource_group" {
+  type      = string
+}
+
+variable "azure_shared_image_gallery" {
+  type      = string
+}
+
+variable "azure_replication_regions" {
+  type = list(string)
+}
+
+
 locals {
   user-data = templatefile("${var.project_root}/src/packer/templates/user-data.tmpl",
                              {
