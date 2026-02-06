@@ -12,6 +12,7 @@ replicated_api_token="$(shell yq .replicated.api_token $(PARAMS))"
 
 shadow    = "$(shell openssl passwd -6 -salt $(SALT) $(shell yq .default_password $(PARAMS)))"
 
+build_region = "$(shell yq .build_region $(PARAMS))"
 instance_type = "$(shell yq .instance_type $(PARAMS))"
 
 volume_size = $(shell yq .volume_size $(PARAMS))
@@ -42,11 +43,19 @@ gcp_zone             = "$(shell yq .gcp.zone $(PARAMS))"
 gcp_source_image   = "$(shell yq .gcp.source_image $(PARAMS))"
 gcp_machine_type   = "$(shell yq .gcp.machine_type $(PARAMS))"
 
+azure_subscription_id = "$(shell yq .azure.subscription_id $(PARAMS))"
+azure_tenant_id = "$(shell yq .azure.tenant_id $(PARAMS))"
+azure_client_id = "$(shell yq .azure.client_id $(PARAMS))"
+azure_client_secret = "$(shell yq .azure.client_secret $(PARAMS))"
+azure_sig_resource_group = "$(shell yq .azure.sig_resource_group $(PARAMS))"
+azure_shared_image_gallery = "$(shell yq .azure.shared_image_gallery $(PARAMS))"
+azure_replication_regions = $(shell yq --output-format json .azure.replication_regions $(PARAMS))
+
 output_directory = "${WORK_DIR}"
 endef
 
 define make-channel-targets
-.PHONY: image\:$(1)/$(2) ami\:$(1)/$(2) ova\:$(1)/$(2) gcp\:$(1)/$(2) validate\:$(1)/$(2) debug\:$(1)/$(2) console\:$(1)/$(2)
+.PHONY: image\:$(1)/$(2) ami\:$(1)/$(2) ova\:$(1)/$(2) gcp\:$(1)/$(2) validate\:$(1)/$(2) debug\:$(1)/$(2) console\:$(1)/$(2) azure\:$(1)/$(2)
 image\:$(1)/$(2): 
 	packer build --force --var 'application=$(1)' --var 'channel=$(2)' \
 		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
@@ -67,6 +76,10 @@ work/$(1)-$(2)-ubuntu-24-04-lts.ova: work/$(1)-$(2)-ubuntu-24-04-lts/$(1)-$(2)-u
 
 gcp\:$(1)/$(2): $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/templates/*.tmpl
 	packer build --only="googlecompute.embedded-cluster" --force --var 'application=$(1)' --var 'channel=$(2)' \
+		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
+
+azure\:$(1)/$(2): $(PKRVARS_FILE) ${SOURCE_DIR}/packer/*.hcl ${SOURCE_DIR}/packer/templates/*.tmpl
+	packer build --only="azure-arm.embedded-cluster" --force --var 'application=$(1)' --var 'channel=$(2)' \
 		--var-file=${SECRETS_DIR}/embedded-cluster.pkrvars.hcl ${SOURCE_DIR}/packer
 
 validate\:$(1)/$(2): $(PKRVARS_FILE)

@@ -11,6 +11,7 @@ cask "powershell"
 brew "python@3.11"
 brew "sops"
 brew "awscli"
+brew "azure-cli"
 
 # VMware OVF Tool is proprietary and not available via Homebrew,
 # so you may need to install it manually from VMware's website.

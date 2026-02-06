@@ -12,5 +12,9 @@ packer {
       source  = "github.com/hashicorp/googlecompute"
       version = "~> 1"
     }
+    azure = {
+      source  = "github.com/hashicorp/azure"
+      version = "~> 2"
+    }
   }
 }
