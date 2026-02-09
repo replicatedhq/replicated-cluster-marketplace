@@ -6,7 +6,7 @@ Reference implementations for deploying [Replicated Embedded Cluster](https://do
 
 ### [embedded-cluster-image/](./embedded-cluster-image/)
 
-Packer automation to create cloud images (AMIs for AWS, Compute Images for GCP, OVAs for vSphere) with your Replicated application pre-installed for air-gapped marketplace deployments.
+Packer automation to create cloud images (AMIs for AWS, Compute Images for GCP, OVAs for vSphere, Shared Compute Gallery image for Azure) with your Replicated application pre-installed for air-gapped marketplace deployments.
 
 ### [aws/](./aws/)
 
@@ -43,18 +43,17 @@ cd ../aws  # or gcp, azure
 
 ## Platform Comparison
 
-| Feature | AWS | GCP | Azure |
-|---------|-----|-----|-------|
-| **Sample App** | SlackerNews (production) | marketplace-example (placeholder) | APPLICATION (placeholder) |
-| **IaC Tool** | CloudFormation + Terraform | Terraform | Bicep |
-| **Licensing** | ✅ Automated (Lambda + SNS) | Manual | Manual |
-| **Multi-node** | ❌ Single-node only | ✅ HA + Workers | ✅ HA + Workers |
-| **Image Builder** | ✅ Packer | ✅ Packer | ❌ Not included |
-| **Marketplace Status** | Production reference | Blueprint-ready | UI definition ready |
-
+| Feature                | AWS                         | GCP                               | Azure                     |
+| ---------------------- | --------------------------- | --------------------------------- | ------------------------- |
+| **Sample App**         | SlackerNews (production)    | marketplace-example (placeholder) | APPLICATION (placeholder) |
+| **IaC Tool**           | CloudFormation + Terraform  | Terraform                         | Bicep                     |
+| **Licensing**          | ✅ Automated (Lambda + SNS) | Manual                            | Manual                    |
+| **Multi-node**         | ❌ Single-node only         | ✅ HA + Workers                   | ✅ HA + Workers           |
+| **Image Builder**      | ✅ Packer                   | ✅ Packer                         | ✅ Packer                 |
+| **Marketplace Status** | Production reference        | Blueprint-ready                   | UI definition ready       |
 
 ## Marketplace Submission
 
 - **AWS**: AMI + CloudFormation + Product Load Form → [aws/README.md](./aws/)
-- **GCP**: Image + Terraform + metadata.yaml → [gcp/README.md](./gcp/)  
+- **GCP**: Image + Terraform + metadata.yaml → [gcp/README.md](./gcp/)
 - **Azure**: Image + Bicep + UI definition → [azure/README.md](./azure/)
