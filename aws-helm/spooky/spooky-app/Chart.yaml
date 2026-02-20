@@ -1,0 +1,13 @@
+apiVersion: v2
+name: spooky-app
+description: A Helm chart for Kubernetes
+dependencies:
+- name: replicated
+  repository: oci://registry.replicated.com/library
+  version: 1.15.0
+
+
+type: application
+version: 0.1.4
+
+appVersion: "1.16.4"

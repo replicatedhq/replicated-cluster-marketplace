@@ -1,6 +1,8 @@
 # Replicated Cluster Marketplace
 
-Reference implementations for deploying [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview) applications through AWS, GCP, and Azure cloud marketplaces.
+* Reference implementations for deploying [Replicated Embedded Cluster](https://docs.replicated.com/vendor/embedded-overview) applications through AWS, GCP, and Azure cloud marketplaces.
+* Reference implementation for deploying Helm Charts through an AWS Marketplace offering.
+
 
 ## Repository Structure
 
@@ -20,7 +22,11 @@ Terraform module with GCP Marketplace metadata for Blueprint submission. Support
 
 Bicep templates with Azure Portal UI definition for Azure Marketplace Application offers. Multi-node support with load balancer and Key Vault integration.
 
-## Getting Started
+### [aws helm](./aws-helm/)
+
+Instruction on how to use Replicated licensing and Enterprise portal in combination with an AWS Helm Chart Marketplace offering.
+
+## Getting Started Embedded Cluster
 
 ### Prerequisites
 

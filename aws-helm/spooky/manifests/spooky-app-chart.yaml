@@ -1,0 +1,58 @@
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: spooky-app
+spec:
+  # chart identifies a matching chart from a .tgz
+  chart:
+    name: spooky-app
+    chartVersion: 0.1.11
+
+  values:
+    nginx:
+      image:
+        repository: nginx
+        tag: 1.29.5
+    busybox:
+      image:
+        repository: busybox
+        tag: 1.37.0
+    curl:
+      image:
+        repository: curlimages/curl
+        tag: 8.5.0
+
+  optionalValues:
+    - when: '{{repl HasLocalRegistry}}'
+      recursiveMerge: true
+      values:
+        nginx:
+          image:
+            repository: '{{repl LocalRegistryHost}}/{{repl LocalRegistryNamespace}}/nginx'
+            tag: 1.29.5
+        busybox:
+          image:
+            repository: '{{repl LocalRegistryHost}}/{{repl LocalRegistryNamespace}}/busybox'
+            tag: 1.37.0
+        curl:
+          image:
+            repository: '{{repl LocalRegistryHost}}/{{repl LocalRegistryNamespace}}/curlimages/curl'
+            tag: 8.5.0
+
+  builder:
+    nginx:
+      image:
+        repository: nginx
+        tag: 1.29.5
+    busybox:
+      image:
+        repository: busybox
+        tag: 1.37.0
+    curl:
+      image:
+        repository: curlimages/curl
+        tag: 8.5.0
+    replicated:
+      image:
+        registry: proxy.replicated.com 
+        repository: library/replicated-sdk-image
