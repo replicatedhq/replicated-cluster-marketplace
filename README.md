@@ -6,19 +6,19 @@
 
 ## Repository Structure
 
-### [embedded-cluster-image/](./embedded-cluster-image/)
+### [embedded-cluster-image](./embedded-cluster-image/)
 
 Packer automation to create cloud images (AMIs for AWS, Compute Images for GCP, OVAs for vSphere, Shared Compute Gallery image for Azure) with your Replicated application pre-installed for air-gapped marketplace deployments.
 
-### [aws/](./aws/)
+### [aws](./aws/)
 
 CloudFormation + Lambda example for AWS Marketplace with automated customer licensing. Based on production SlackerNews deployment. Single-node architecture.
 
-### [gcp/](./gcp/)
+### [gcp](./gcp/)
 
 Terraform module with GCP Marketplace metadata for Blueprint submission. Supports single-node and multi-node HA deployments with Secret Manager integration.
 
-### [azure/](./azure/)
+### [azure](./azure/)
 
 Bicep templates with Azure Portal UI definition for Azure Marketplace Application offers. Multi-node support with load balancer and Key Vault integration.
 

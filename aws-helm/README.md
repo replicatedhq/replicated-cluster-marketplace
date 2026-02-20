@@ -156,6 +156,7 @@ Prerequisites:
 * You have an application defined in vendor.replicated.com
 * You have the replicated cli configured
 * You have a channel for your application called `aws-marketplace`, which has the setting to automatically create Air Gap builds enabled.
+* You have Enterprise Portal enabled and [Self-Service Sign-Ups](https://docs.replicated.com/vendor/enterprise-portal-self-serve-signup)
 
 
 Next is packaging your application, so that Replicated can create the air gap bundle and generate a list of all the image we'll have to push to the Marketplace ECR registry.
