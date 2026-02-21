@@ -6,7 +6,7 @@ An AWS Helm Chart Marketplace offering is created as a `Server Product`. Go to [
 
 ### AWS Marketplace ECR Repositories
 
-Once the product is created, click on "Request Changes" and "Add repositories". For each image that is part of your repository, you'll need to create a corresponding repository. Example structure:
+Once the product is created, click on "Request Changes" and "Add repositories". For each image that is part of your Helm Chart, you'll need to create a corresponding repository. Example structure:
 
 ```
 709825985650.dkr.ecr.us-east-1.amazonaws.com/slackernews/spooky
@@ -19,7 +19,7 @@ Once the product is created, click on "Request Changes" and "Add repositories". 
 
 ## Helm Chart
 
-Under [spooky/spooky-app](.spooky/spooky-app/) there is an example Helm chart we'll use as an example for an AWS Marketplace offering as a Helm Chart.
+Under [spooky/spooky-app](.spooky/spooky-app/) there is an example Helm chart we'll use for an AWS Marketplace offering as a Helm Chart.
 In order to make a Helm Chart ready for the AWS Marketplace in combination with Replicated licensing, the following must be taken into consideration.
 
 1. Replicated SDK
@@ -114,12 +114,12 @@ Package your helm chart, and copy it over to the location that has your Replicat
 ```
 HELM_VERSION=0.1.11
 cd spooky
-helm package spooky-app -u -d manifest --app-version=$HELM_VERSION --version=$HELM_VERSION
+helm package spooky-app -u -d manifests --app-version=$HELM_VERSION --version=$HELM_VERSION
 ```
 
 2. Create HelmChart specification
 
-Create your `kind: HelmChart` specification and ensure it has the `builder` values configured to pull all your images from your Helm Chart to create the air gap bundle. An example can be found under [spooky/manifest/spooky-app-chart.yaml](spooky/manifests/spooky-app-chart.yaml).
+Create your `kind: HelmChart` specification and ensure it has the `builder` values configured to pull all your images from your Helm Chart to create the air gap bundle. An example can be found under [spooky/manifests/spooky-app-chart.yaml](spooky/manifests/spooky-app-chart.yaml).
 
 ```
   builder:
@@ -167,7 +167,7 @@ replicated release create --yaml-dir . --promote aws-marketplace --version <REPL
 
 4. Create a Development Customer
 
-In the vendor portal, create a new customer assigned to the `aws-marketplace` channel and enable `Helm CLI` and `Helm CLI Air Gap instrucations` options.
+In the vendor portal, create a new customer assigned to the `aws-marketplace` channel and enable `Helm CLI` and `Helm CLI Air Gap Instructions` options.
 
 ## Push artifacts to Marketplace ECR Registry
 
@@ -179,7 +179,7 @@ If not done yet, ensure you have logged in into the ecr marketplace registry usi
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 709825985650.dkr.ecr.us-east-1.amazonaws.com
 ```
 
-Go to the Replicated download portal for that customer. Log in to the registry and pull, tag and push each image to the ECR marketplace repository.
+Go to the Replicated Enterprise Portal for that customer, click on Install and select `No outbound requests allowed (air gap)` and `My workstation can access the internet, the registry AND the cluster`. Follow the instructions 1 to 4 to pull, tag and push each image to the ECR marketplace repository.
 
 2. Helm chart
 
@@ -208,7 +208,7 @@ Configure the following:
 
 ````markdown
 1. Register for a trial
-* Browse to [https://enterprise.replicated.com/tmp-relmatrix/signup](https://enterprise.replicated.com/tmp-relmatrix/signup) and signup.
+* Browse to [https://enterprise.replicated.com/marketplace-helm/signup](https://enterprise.replicated.com/marketplace-helm/signup) and signup.
 * Go to "Install", specify an instance name and click "Continue"
 * Copy the "Export credentials and log in" command and run it. It will look like
 ```
@@ -230,7 +230,7 @@ helm pull oci://709825985650.dkr.ecr.us-east-1.amazonaws.com/slackernews/spooky-
 
 3. Get the values file
 ```
-helm show values oci://registry.replicated.com/tmp-relmatrix/aws-marketplace/spooky-app \
+helm show values oci://registry.replicated.com/marketplace-helm/aws-marketplace/spooky-app \
     --version 0.1.11 > values-replicated.yaml
 ```
 
@@ -240,3 +240,5 @@ helm install spooky-app spooky-app-0.1.11.tgz --namespace spooky --create-namesp
     --values values-replicated.yaml 
 ```
 ````
+
+Submit the new version and wait for it to be reviewed (can take 45 minutes).
