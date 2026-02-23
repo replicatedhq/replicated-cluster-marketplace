@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "relmatrix-app.fullname" . }}
+  labels:
+    {{- include "relmatrix-app.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "relmatrix-app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "relmatrix-app.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "relmatrix-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: license-validator
+          image: "{{ .Values.curl.image.repository }}:{{ .Values.curl.image.tag }}"
+          imagePullPolicy: {{ .Values.curl.image.pullPolicy }}
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - |
+              echo "Validating license expiration..."
+
+              # Fetch license expiration date from Replicated SDK
+              RESPONSE=$(curl -sf http://replicated:3000/api/v1/license/fields/expires_at)
+              if [ $? -ne 0 ]; then
+                echo "ERROR: Unable to connect to Replicated SDK"
+                exit 1
+              fi
+
+              # Extract the expires_at value from JSON response
+              EXPIRES_AT=$(echo "$RESPONSE" | grep -o '"value":"[^"]*"' | cut -d'"' -f4)
+
+              if [ -z "$EXPIRES_AT" ]; then
+                echo "ERROR: Unable to retrieve license expiration date"
+                exit 1
+              fi
+
+              echo "License expires at: $EXPIRES_AT"
+
+              # Convert dates to epoch for comparison
+              # BusyBox date (used in Alpine/curlimages) requires -D for input format
+              # Strip the 'Z' suffix and parse the ISO 8601 format
+              EXPIRES_AT_STRIPPED=${EXPIRES_AT%Z}
+              EXPIRES_EPOCH=$(date -D "%Y-%m-%dT%H:%M:%S" -d "$EXPIRES_AT_STRIPPED" +%s 2>/dev/null)
+              CURRENT_EPOCH=$(date +%s)
+
+              if [ -z "$EXPIRES_EPOCH" ]; then
+                echo "ERROR: Unable to parse expiration date"
+                exit 1
+              fi
+
+              # Check if license has expired
+              if [ "$CURRENT_EPOCH" -gt "$EXPIRES_EPOCH" ]; then
+                echo "ERROR: License has expired on $EXPIRES_AT"
+                exit 1
+              fi
+
+              DAYS_REMAINING=$(( ($EXPIRES_EPOCH - $CURRENT_EPOCH) / 86400 ))
+              echo "License is valid. Days remaining: $DAYS_REMAINING"
+              exit 0
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

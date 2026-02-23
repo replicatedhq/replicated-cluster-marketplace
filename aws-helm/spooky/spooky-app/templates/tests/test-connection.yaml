@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "relmatrix-app.fullname" . }}-test-connection"
+  labels:
+    {{- include "relmatrix-app.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: "{{ .Values.busybox.image.repository }}:{{ .Values.busybox.image.tag | default .Chart.AppVersion }}"
+      command: ['wget']
+      args: ['{{ include "relmatrix-app.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
